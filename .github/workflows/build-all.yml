@@ -173,18 +173,31 @@ jobs:
           path: artifacts
       - name: Stage release assets
         run: |
+          set -euo pipefail
           mkdir -p dist
           v="${GITHUB_REF_NAME}"
-          # Android: single files, just rename for clarity.
-          cp artifacts/android/app-release.apk "dist/medi-tracker-${v}-android.apk"
-          cp artifacts/android/app-release.aab "dist/medi-tracker-${v}-android.aab"
+          echo "Downloaded artifact tree:"
+          find artifacts -maxdepth 3 -type f | sort
+
+          # upload-artifact@v4 preserves sub-paths, so locate by name
+          # instead of assuming a flat layout.
+          apk="$(find artifacts/android -name 'app-release.apk' | head -n1)"
+          aab="$(find artifacts/android -name 'app-release.aab' | head -n1)"
+          cp "$apk" "dist/medi-tracker-${v}-android.apk"
+          cp "$aab" "dist/medi-tracker-${v}-android.aab"
+
           # Desktop/web outputs are folders -> zip each into one asset.
-          (cd artifacts/web && zip -r "../../dist/medi-tracker-${v}-web.zip" .)
-          (cd artifacts/linux && zip -r "../../dist/medi-tracker-${v}-linux.zip" .)
-          (cd artifacts/windows && zip -r "../../dist/medi-tracker-${v}-windows.zip" .)
-          # macOS / iOS already arrive as zips.
-          cp artifacts/macos/*.zip "dist/medi-tracker-${v}-macos.zip"
-          cp artifacts/ios-unsigned/*.zip "dist/medi-tracker-${v}-ios-unsigned.zip"
+          (cd artifacts/web && zip -qr "../../dist/medi-tracker-${v}-web.zip" .)
+          (cd artifacts/linux && zip -qr "../../dist/medi-tracker-${v}-linux.zip" .)
+          (cd artifacts/windows && zip -qr "../../dist/medi-tracker-${v}-windows.zip" .)
+
+          # macOS / iOS already arrive as single zips.
+          cp "$(find artifacts/macos -name '*.zip' | head -n1)" \
+            "dist/medi-tracker-${v}-macos.zip"
+          cp "$(find artifacts/ios-unsigned -name '*.zip' | head -n1)" \
+            "dist/medi-tracker-${v}-ios-unsigned.zip"
+
+          echo "Staged assets:"
           ls -lh dist
       - name: Publish release
         uses: softprops/action-gh-release@v2
