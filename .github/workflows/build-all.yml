@@ -17,6 +17,9 @@ on:
 
 env:
   FLUTTER_VERSION: 3.41.9
+  # Run JS actions (checkout, upload-artifact) on Node 24. Silences the
+  # Node 20 deprecation warning ahead of GitHub's 2026-06-02 cutoff.
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
 jobs:
   # ---------------------------------------------------------------- Android
