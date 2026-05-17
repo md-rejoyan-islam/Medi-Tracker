@@ -1,28 +1,52 @@
-# bluetooth_ble
+# Medi Tracker
 
-A cross-platform Flutter app for scanning, connecting to, and inspecting
-Bluetooth Low Energy (BLE) devices.
+A cross-platform Flutter **medication reminder & adherence tracker** with a
+built-in Bluetooth Low Energy toolbox for linking a smart pill dispenser.
+
+Data is stored **locally only** (Hive — no accounts, no network). Reminders
+use local notifications; the original BLE explorer is kept as the "Devices"
+tab for inspecting and linking hardware.
 
 Built with [`flutter_blue_plus`](https://pub.dev/packages/flutter_blue_plus)
-(+ `flutter_blue_plus_winrt` for Windows) and `permission_handler`.
+(+ `flutter_blue_plus_winrt` for Windows), `flutter_local_notifications`,
+`hive_ce`, and `permission_handler`.
 
 ## Features
 
-- Scan for nearby BLE devices with live RSSI signal strength
-- Connect / disconnect and view connection state
-- Discover GATT services and characteristics
-- Read characteristics and subscribe to notifications/indications
-- Runtime permission handling and Bluetooth adapter state display
+- Add medications with per-dose times and weekday repeat rules
+- Scheduled local-notification reminders at each dose time
+- "Today" screen: one-tap **Taken / Skip** for every scheduled dose
+- Adherence history: taken / missed / skipped %, overall and per-med
+- BLE toolbox: scan, connect, inspect GATT services/characteristics
+- Optional auto-logging from a linked BLE pill dispenser (config-driven)
 
 ## Project structure
 
 ```
 lib/
-  main.dart                 App entry + theme
-  ble/ble_service.dart      flutter_blue_plus wrapper (scan, permissions, adapter)
-  screens/scan_screen.dart  Device scan list
-  screens/device_screen.dart Connect + services/characteristics explorer
+  main.dart                       App entry, Hive/notification init, nav shell
+  models/medication.dart          Medication + schedule logic (Hive adapter)
+  models/dose_log.dart            Dose log entry (Hive adapter)
+  data/medi_store.dart            Hive-backed local store
+  data/adherence.dart             Pure schedule/adherence logic (unit-tested)
+  services/reminder_service.dart  Scheduled local notifications
+  screens/today_screen.dart       Today's doses, Taken/Skip
+  screens/medications_screen.dart Medication list
+  screens/medication_edit_screen.dart  Add/edit + schedule builder
+  screens/history_screen.dart     Adherence stats
+  ble/ble_service.dart            flutter_blue_plus wrapper
+  ble/pill_dispenser_service.dart Config-driven dispenser → dose-log bridge
+  screens/scan_screen.dart        BLE device scan list
+  screens/device_screen.dart      Connect + GATT explorer
 ```
+
+## Linking a BLE pill dispenser
+
+`pill_dispenser_service.dart` is intentionally **inert until configured** —
+dispenser GATT layouts are vendor-specific. Supply the device's service
+UUID, event-characteristic UUID, and a payload→slot parser via
+`PillDispenserService.instance.configure(...)`, set each medication's
+`dispenserSlot`, and dispensed doses auto-log as taken.
 
 ## Platform support
 
@@ -60,7 +84,7 @@ flutter run -d android      # Android (after SDK install)
 
 ```sh
 flutter analyze             # static analysis — currently clean
-flutter test                # widget smoke test — currently passing
+flutter test                # adherence unit tests + widget smoke test — passing
 ```
 
 ## Notes
@@ -71,3 +95,8 @@ flutter test                # widget smoke test — currently passing
   paid license — see the flutter_blue_plus LICENSE.
 - BLE does not work in the headless test VM; the scan screen fails soft and
   shows an "unavailable on this platform" message instead of crashing.
+- Local notifications are supported on Android, iOS, macOS and Linux. On
+  Windows desktop the reminder service degrades to a safe no-op (the rest
+  of the app — scheduling, logging, history — works normally).
+- Android exact-alarm permission is not required: reminders use
+  `inexactAllowWhileIdle`, which the OS may batch by a few minutes.
