@@ -3,6 +3,9 @@ name: Build all platforms
 # Builds Android, Web, Windows, Linux, macOS and iOS on every push to main,
 # on every tag, and on manual dispatch. Each platform's output is uploaded
 # as a downloadable artifact (Actions run -> Artifacts).
+#
+# Additionally, pushing a tag like `v1.0.0` publishes all platform builds
+# as assets on a GitHub Release (repo -> Releases).
 
 on:
   push:
@@ -152,3 +155,40 @@ jobs:
         with:
           name: ios-unsigned
           path: build/ios/iphoneos/Runner-unsigned.zip
+
+  # --------------------------------------------------------------- Release
+  # Runs only for tag pushes (e.g. `git tag v1.0.0 && git push --tags`).
+  # Collects every platform's build and attaches them to a GitHub Release.
+  release:
+    name: Publish GitHub Release
+    needs: [android, web, linux, windows, macos, ios]
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Download all build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+      - name: Stage release assets
+        run: |
+          mkdir -p dist
+          v="${GITHUB_REF_NAME}"
+          # Android: single files, just rename for clarity.
+          cp artifacts/android/app-release.apk "dist/medi-tracker-${v}-android.apk"
+          cp artifacts/android/app-release.aab "dist/medi-tracker-${v}-android.aab"
+          # Desktop/web outputs are folders -> zip each into one asset.
+          (cd artifacts/web && zip -r "../../dist/medi-tracker-${v}-web.zip" .)
+          (cd artifacts/linux && zip -r "../../dist/medi-tracker-${v}-linux.zip" .)
+          (cd artifacts/windows && zip -r "../../dist/medi-tracker-${v}-windows.zip" .)
+          # macOS / iOS already arrive as zips.
+          cp artifacts/macos/*.zip "dist/medi-tracker-${v}-macos.zip"
+          cp artifacts/ios-unsigned/*.zip "dist/medi-tracker-${v}-ios-unsigned.zip"
+          ls -lh dist
+      - name: Publish release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/*
+          generate_release_notes: true
+          fail_on_unmatched_files: true
