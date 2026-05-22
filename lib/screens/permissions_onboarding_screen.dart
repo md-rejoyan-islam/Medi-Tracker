@@ -25,6 +25,24 @@ class PermissionsOnboardingScreen extends StatefulWidget {
 class _PermissionsOnboardingScreenState
     extends State<PermissionsOnboardingScreen> {
   bool _working = false;
+  bool _autoFired = false;
+
+  @override
+  void initState() {
+    super.initState();
+    // Auto-fire the system permission dialogs the moment the screen appears
+    // — matches the install-time-permission UX users expect from apps like
+    // bKash. The screen still renders behind the dialogs so users see the
+    // context for what they're granting. A small delay lets the screen
+    // paint first so the prompts don't cover a blank background.
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      await Future<void>.delayed(const Duration(milliseconds: 350));
+      if (mounted && !_autoFired) {
+        _autoFired = true;
+        await _allowAll();
+      }
+    });
+  }
 
   Future<void> _allowAll() async {
     setState(() => _working = true);

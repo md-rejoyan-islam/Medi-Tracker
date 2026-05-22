@@ -295,6 +295,61 @@ class ReminderService {
     }
   }
 
+  /// Schedules a single notification [seconds] in the future via the same
+  /// exact-alarm pipeline real medication reminders use. The point: prove
+  /// scheduling works (channel + alarm + exact permission + battery exempt)
+  /// **without** waiting for a real dose time. If this fires while the app
+  /// is closed, real scheduled reminders will too.
+  Future<bool> scheduleTestNotification({int seconds = 30}) async {
+    if (!_supported) return false;
+    try {
+      await requestPermission();
+      final lang = SettingsStore.instance.language;
+      final when = tz.TZDateTime.now(tz.local).add(Duration(seconds: seconds));
+      await _plugin.zonedSchedule(
+        9998,
+        ReminderText.testTitle(lang),
+        'Scheduled test ($seconds s). ${ReminderText.testBody(lang)}',
+        when,
+        _details,
+        androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+      );
+      return true;
+    } catch (_) {
+      try {
+        // Fall back to inexact if exact-alarm permission isn't granted.
+        final lang = SettingsStore.instance.language;
+        final when =
+            tz.TZDateTime.now(tz.local).add(Duration(seconds: seconds));
+        await _plugin.zonedSchedule(
+          9998,
+          ReminderText.testTitle(lang),
+          'Scheduled test ($seconds s, inexact). '
+              '${ReminderText.testBody(lang)}',
+          when,
+          _details,
+          androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
+        );
+        return true;
+      } catch (_) {
+        return false;
+      }
+    }
+  }
+
+  /// How many notifications are currently scheduled with the OS. A useful
+  /// sanity check — if this is 0 right after adding meds, scheduling
+  /// silently failed (usually an exact-alarm permission issue).
+  Future<int> pendingNotificationCount() async {
+    if (!_supported) return 0;
+    try {
+      final pending = await _plugin.pendingNotificationRequests();
+      return pending.length;
+    } catch (_) {
+      return 0;
+    }
+  }
+
   /// Snapshot of every reliability-relevant permission so the UI can show
   /// the user exactly what's blocking notifications. Returns null fields
   /// on non-Android platforms (iOS / desktop don't expose this trio).

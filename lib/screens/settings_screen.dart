@@ -109,13 +109,22 @@ class SettingsScreen extends StatelessWidget {
               ),
               ListTile(
                 leading: const Icon(Icons.notifications_active),
-                title: const Text('Send test notification'),
+                title: const Text('Send test notification (now)'),
                 subtitle: const Text(
-                  'Verify sound + delivery. Lock the phone first if '
-                  'you want to test when the app is closed.',
+                  'Fires immediately — verifies sound + permissions.',
                 ),
                 onTap: () => _testNotification(context),
               ),
+              ListTile(
+                leading: const Icon(Icons.schedule_send),
+                title: const Text('Test scheduled notification (30 s)'),
+                subtitle: const Text(
+                  'Schedules via the same pipeline real medication '
+                  'reminders use. Close the app to verify it still fires.',
+                ),
+                onTap: () => _testScheduledNotification(context),
+              ),
+              const _PendingNotificationsTile(),
 
               const _SectionHeader('Device'),
               ListTile(
@@ -233,6 +242,33 @@ class SettingsScreen extends StatelessWidget {
     );
   }
 
+  Future<void> _testScheduledNotification(BuildContext context) async {
+    final svc = ReminderService.instance;
+    if (!svc.supported) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Scheduled notifications are not supported on this platform.',
+          ),
+        ),
+      );
+      return;
+    }
+    final ok = await svc.scheduleTestNotification(seconds: 30);
+    if (!context.mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          ok
+              ? 'Scheduled in 30 s. You can close the app — it will still '
+                  'fire if scheduling is working.'
+              : 'Failed to schedule. Check the reliability card above.',
+        ),
+        duration: const Duration(seconds: 5),
+      ),
+    );
+  }
+
   Future<void> _syncTime(BuildContext context) async {
     final svc = PillDispenserService.instance;
     if (!svc.isAttached) {
@@ -281,6 +317,50 @@ class _SectionHeader extends StatelessWidget {
               color: Theme.of(context).colorScheme.primary,
             ),
       ),
+    );
+  }
+}
+
+/// Shows how many notifications are queued with the OS. If you have 5
+/// medications scheduled and this says 0, scheduling is silently failing
+/// — usually the exact-alarm permission was denied. Tap to refresh.
+class _PendingNotificationsTile extends StatefulWidget {
+  const _PendingNotificationsTile();
+
+  @override
+  State<_PendingNotificationsTile> createState() =>
+      _PendingNotificationsTileState();
+}
+
+class _PendingNotificationsTileState extends State<_PendingNotificationsTile> {
+  int? _count;
+
+  @override
+  void initState() {
+    super.initState();
+    _refresh();
+  }
+
+  Future<void> _refresh() async {
+    final n = await ReminderService.instance.pendingNotificationCount();
+    if (mounted) setState(() => _count = n);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return ListTile(
+      leading: const Icon(Icons.queue_outlined),
+      title: const Text('Scheduled reminders'),
+      subtitle: Text(
+        _count == null
+            ? 'Checking…'
+            : '$_count notifications queued with the OS',
+      ),
+      trailing: IconButton(
+        icon: const Icon(Icons.refresh),
+        onPressed: _refresh,
+      ),
+      onTap: _refresh,
     );
   }
 }
