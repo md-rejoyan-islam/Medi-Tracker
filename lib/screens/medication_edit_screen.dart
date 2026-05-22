@@ -89,6 +89,28 @@ class _MedicationEditScreenState extends State<MedicationEditScreen> {
     }
   }
 
+  /// Re-open the time picker pre-filled with [oldMinutes] and replace it
+  /// with the user's new choice. Tapping the chip cancels (no change).
+  Future<void> _editTime(int oldMinutes) async {
+    final initial = TimeOfDay(
+      hour: oldMinutes ~/ 60,
+      minute: oldMinutes % 60,
+    );
+    final picked = await showTimePicker(
+      context: context,
+      initialTime: initial,
+    );
+    if (picked == null) return;
+    final newMinutes = picked.hour * 60 + picked.minute;
+    if (newMinutes == oldMinutes) return;
+    setState(() {
+      _times.remove(oldMinutes);
+      if (!_times.contains(newMinutes)) _times.add(newMinutes);
+      _times.sort();
+      _frequency = Frequency.custom;
+    });
+  }
+
   Future<void> _pickDate({required bool isStart}) async {
     final initial = isStart ? _start : (_end ?? _start);
     final picked = await showDatePicker(
@@ -260,6 +282,8 @@ class _MedicationEditScreenState extends State<MedicationEditScreen> {
                 for (final t in _times)
                   InputChip(
                     label: Text(_fmt(t)),
+                    tooltip: 'Tap to change time',
+                    onPressed: () => _editTime(t),
                     onDeleted: () => setState(() {
                       _times.remove(t);
                       _frequency = Frequency.custom;

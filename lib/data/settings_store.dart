@@ -4,6 +4,37 @@ import 'package:hive_ce_flutter/hive_flutter.dart';
 /// Voice language used by the device for reminder prompts (spec §9).
 enum ReminderLanguage { english, bengali, bilingual }
 
+/// A BLE device the user has previously paired with.
+///
+/// Stored as a plain map inside the settings box so we don't need a separate
+/// Hive adapter / type id for it. Identity is the BLE remote id (MAC on
+/// Android, UUID on iOS).
+class KnownDevice {
+  KnownDevice({
+    required this.id,
+    required this.name,
+    required this.lastConnected,
+  });
+
+  factory KnownDevice.fromMap(Map m) => KnownDevice(
+        id: m['id'] as String,
+        name: (m['name'] as String?) ?? 'MediTracker',
+        lastConnected: DateTime.fromMillisecondsSinceEpoch(
+          (m['lastConnected'] as int?) ?? 0,
+        ),
+      );
+
+  final String id;
+  final String name;
+  final DateTime lastConnected;
+
+  Map<String, dynamic> toMap() => {
+        'id': id,
+        'name': name,
+        'lastConnected': lastConnected.millisecondsSinceEpoch,
+      };
+}
+
 /// App + device settings, persisted locally.
 ///
 /// Exposed as a [ValueListenable] so widgets can rebuild reactively without
@@ -71,6 +102,51 @@ class SettingsStore extends ChangeNotifier {
   }
 
   bool get hasPairedDevice => pairedDeviceId != null;
+
+  // --- Connection history -----------------------------------------------
+  // Persists every device the user has paired with so the Pair screen can
+  // show them as one-tap shortcuts after an app restart.
+
+  static const _historyKey = 'known_devices';
+
+  List<KnownDevice> get knownDevices {
+    final raw =
+        (_box.get(_historyKey, defaultValue: const <dynamic>[]) as List)
+            .cast<dynamic>();
+    final list = raw
+        .map((e) => KnownDevice.fromMap(Map.from(e as Map)))
+        .toList(growable: false);
+    // Most recent first.
+    list.sort((a, b) => b.lastConnected.compareTo(a.lastConnected));
+    return list;
+  }
+
+  /// Add (or refresh) a device in the history, capped at 8 entries — the
+  /// number of drawers on the hardware doubles as a sensible cap for how
+  /// many MediTracker units a household would realistically pair.
+  void rememberDevice({required String id, required String name}) {
+    final existing = knownDevices.where((d) => d.id != id).toList();
+    final updated = <KnownDevice>[
+      KnownDevice(id: id, name: name, lastConnected: DateTime.now()),
+      ...existing,
+    ];
+    final capped = updated.take(8).toList();
+    _box.put(
+      _historyKey,
+      capped.map((d) => d.toMap()).toList(growable: false),
+    );
+    notifyListeners();
+  }
+
+  void forgetDevice(String id) {
+    final filtered = knownDevices.where((d) => d.id != id).toList();
+    _box.put(
+      _historyKey,
+      filtered.map((d) => d.toMap()).toList(growable: false),
+    );
+    if (pairedDeviceId == id) pairedDeviceId = null;
+    notifyListeners();
+  }
 
   // --- Onboarding -------------------------------------------------------
 

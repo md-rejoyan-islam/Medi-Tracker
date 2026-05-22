@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../main.dart' show rootNavigatorKey;
+import '../services/in_app_reminder_watcher.dart';
 import 'dashboard_screen.dart';
 import 'drawers_screen.dart';
 import 'history_screen.dart';
@@ -17,6 +19,7 @@ class HomeShell extends StatefulWidget {
 
 class _HomeShellState extends State<HomeShell> {
   int _index = 0;
+  late final InAppReminderWatcher _watcher;
 
   static const _tabs = <Widget>[
     DashboardScreen(),
@@ -25,6 +28,18 @@ class _HomeShellState extends State<HomeShell> {
     HistoryScreen(),
     SettingsScreen(),
   ];
+
+  @override
+  void initState() {
+    super.initState();
+    _watcher = InAppReminderWatcher(rootNavigatorKey)..start();
+  }
+
+  @override
+  void dispose() {
+    _watcher.stop();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {

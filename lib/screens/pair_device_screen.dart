@@ -88,10 +88,14 @@ class _PairDeviceScreenState extends State<PairDeviceScreen> {
     }
   }
 
-  void _registerById(String id, {required String source}) {
+  void _registerById(String id, {required String source, String? name}) {
+    final resolvedName = (name == null || name.isEmpty) ? 'MediTracker' : name;
     final settings = SettingsStore.instance;
-    settings.pairedDeviceId = id;
-    _snack('Paired via $source · device id $id');
+    settings
+      ..pairedDeviceId = id
+      ..deviceName = resolvedName
+      ..rememberDevice(id: id, name: resolvedName);
+    _snack('Paired via $source · $resolvedName');
     Navigator.of(context).pop();
   }
 
@@ -100,11 +104,41 @@ class _PairDeviceScreenState extends State<PairDeviceScreen> {
     final name = r.device.platformName.isNotEmpty
         ? r.device.platformName
         : r.advertisementData.advName;
-    SettingsStore.instance
-      ..pairedDeviceId = id
-      ..deviceName = name.isEmpty ? 'MediTracker' : name;
-    _snack('Paired with ${SettingsStore.instance.deviceName}');
+    _registerById(id, source: 'BLE', name: name);
+  }
+
+  void _pairKnown(KnownDevice d) {
+    final settings = SettingsStore.instance;
+    settings
+      ..pairedDeviceId = d.id
+      ..deviceName = d.name
+      ..rememberDevice(id: d.id, name: d.name); // refresh lastConnected
+    _snack('Reconnected to ${d.name}');
     Navigator.of(context).pop();
+  }
+
+  Future<void> _confirmForget(KnownDevice d) async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: Text('Forget ${d.name}?'),
+        content: const Text('Remove this device from connection history.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Forget'),
+          ),
+        ],
+      ),
+    );
+    if (ok ?? false) {
+      SettingsStore.instance.forgetDevice(d.id);
+      setState(() {});
+    }
   }
 
   void _snack(String msg) {
@@ -117,9 +151,13 @@ class _PairDeviceScreenState extends State<PairDeviceScreen> {
   @override
   Widget build(BuildContext context) {
     final sorted = [..._results]..sort((a, b) => b.rssi.compareTo(a.rssi));
+    final known = SettingsStore.instance.knownDevices;
     return Scaffold(
       appBar: AppBar(title: const Text('Pair device')),
-      body: Column(
+      body: AnimatedBuilder(
+        animation: SettingsStore.instance,
+        builder: (context, _) {
+          return Column(
         children: [
           Padding(
             padding: const EdgeInsets.all(16),
@@ -143,6 +181,42 @@ class _PairDeviceScreenState extends State<PairDeviceScreen> {
               ],
             ),
           ),
+          if (known.isNotEmpty) ...[
+            const Divider(height: 1),
+            Padding(
+              padding:
+                  const EdgeInsets.fromLTRB(16, 12, 16, 4),
+              child: Row(
+                children: [
+                  Text(
+                    'Previously connected',
+                    style: Theme.of(context).textTheme.titleMedium,
+                  ),
+                ],
+              ),
+            ),
+            Padding(
+              padding:
+                  const EdgeInsets.fromLTRB(16, 4, 16, 12),
+              child: Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  for (final d in known)
+                    InputChip(
+                      avatar: const Icon(Icons.bluetooth, size: 18),
+                      label: Text(
+                        '${d.name} · ${_relativeTime(d.lastConnected)}',
+                      ),
+                      onPressed: () => _pairKnown(d),
+                      onDeleted: () => _confirmForget(d),
+                      deleteIconColor:
+                          Theme.of(context).colorScheme.outline,
+                    ),
+                ],
+              ),
+            ),
+          ],
           const Divider(height: 1),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -195,9 +269,21 @@ class _PairDeviceScreenState extends State<PairDeviceScreen> {
                   ),
           ),
         ],
+      );
+        },
       ),
     );
   }
+}
+
+String _relativeTime(DateTime t) {
+  final diff = DateTime.now().difference(t);
+  if (diff.inSeconds < 60) return 'just now';
+  if (diff.inMinutes < 60) return '${diff.inMinutes}m ago';
+  if (diff.inHours < 24) return '${diff.inHours}h ago';
+  if (diff.inDays < 7) return '${diff.inDays}d ago';
+  return '${t.year}-${t.month.toString().padLeft(2, '0')}-'
+      '${t.day.toString().padLeft(2, '0')}';
 }
 
 class _MethodButton extends StatelessWidget {

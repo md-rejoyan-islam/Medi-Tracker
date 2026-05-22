@@ -6,6 +6,11 @@ import 'screens/home_shell.dart';
 import 'screens/welcome_screen.dart';
 import 'services/reminder_service.dart';
 
+/// Process-wide navigator key so background services (e.g. the in-app
+/// reminder watcher) can push routes without needing a `BuildContext`.
+final GlobalKey<NavigatorState> rootNavigatorKey =
+    GlobalKey<NavigatorState>();
+
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await MediStore.instance.init();
@@ -22,6 +27,7 @@ class MediApp extends StatelessWidget {
     return MaterialApp(
       title: 'MediTracker',
       debugShowCheckedModeBanner: false,
+      navigatorKey: rootNavigatorKey,
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.teal),
         useMaterial3: true,
