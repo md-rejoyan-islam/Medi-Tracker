@@ -40,18 +40,10 @@ class WelcomeScreen extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               const Spacer(),
-              Icon(
-                Icons.medication,
-                size: 96,
-                color: Theme.of(context).colorScheme.primary,
-              ),
-              const SizedBox(height: 16),
-              Text(
-                'MediTracker',
-                textAlign: TextAlign.center,
-                style: Theme.of(context).textTheme.displaySmall?.copyWith(
-                      fontWeight: FontWeight.bold,
-                    ),
+              Image.asset(
+                'assets/logo/logo-with-text.png',
+                height: 180,
+                fit: BoxFit.contain,
               ),
               const SizedBox(height: 8),
               Text(

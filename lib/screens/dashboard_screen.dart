@@ -25,7 +25,15 @@ class DashboardScreen extends StatelessWidget {
     ]);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Dashboard')),
+      appBar: AppBar(
+        title: Row(
+          children: [
+            Image.asset('assets/logo/logo.png', height: 32),
+            const SizedBox(width: 10),
+            const Text('Dashboard'),
+          ],
+        ),
+      ),
       body: AnimatedBuilder(
         animation: listenable,
         builder: (context, _) {

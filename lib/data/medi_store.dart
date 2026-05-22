@@ -120,6 +120,4 @@ class MediStore {
     final existing = logFor(medicationId, scheduledTime);
     if (existing != null) await _logs.delete(existing.id);
   }
-
-  List<DoseLog> get allLogs => _logs.values.toList(growable: false);
 }

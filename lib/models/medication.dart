@@ -56,10 +56,6 @@ class Medication {
   MealTiming mealTiming;
   bool active;
 
-  /// Back-compat alias: previous releases called this `dispenserSlot`.
-  int? get dispenserSlot => drawer;
-  set dispenserSlot(int? v) => drawer = v;
-
   /// The preset that produced [timesOfDay] (derived, not stored).
   Frequency get frequency {
     return switch (timesOfDay.length) {
@@ -93,35 +89,6 @@ class Medication {
       for (final m in sorted)
         DateTime(day.year, day.month, day.day, m ~/ 60, m % 60),
     ];
-  }
-
-  Medication copyWith({
-    String? name,
-    String? dosage,
-    List<int>? timesOfDay,
-    List<int>? daysOfWeek,
-    DateTime? startDate,
-    DateTime? endDate,
-    bool clearEndDate = false,
-    String? notes,
-    int? drawer,
-    bool clearDrawer = false,
-    MealTiming? mealTiming,
-    bool? active,
-  }) {
-    return Medication(
-      id: id,
-      name: name ?? this.name,
-      dosage: dosage ?? this.dosage,
-      timesOfDay: timesOfDay ?? this.timesOfDay,
-      daysOfWeek: daysOfWeek ?? this.daysOfWeek,
-      startDate: startDate ?? this.startDate,
-      endDate: clearEndDate ? null : (endDate ?? this.endDate),
-      notes: notes ?? this.notes,
-      drawer: clearDrawer ? null : (drawer ?? this.drawer),
-      mealTiming: mealTiming ?? this.mealTiming,
-      active: active ?? this.active,
-    );
   }
 
   /// JSON the phone sends to the nRF52832 over BLE (see spec §3).

@@ -4,7 +4,6 @@ import 'package:hive_ce_flutter/hive_flutter.dart';
 import '../data/adherence.dart';
 import '../data/medi_store.dart';
 import '../models/dose_log.dart';
-import '../models/medication.dart';
 import 'reports_screen.dart';
 
 /// Spec §7 + §8: per-dose daily history timeline and aggregated Reports
@@ -211,8 +210,3 @@ class _DoseLine extends StatelessWidget {
     return ('Pending', Colors.grey, Icons.schedule);
   }
 }
-
-/// Per-medication helper used by the Reports tab.
-List<Medication> medicationsSnapshot() =>
-    MediStore.instance.medications
-      ..sort((a, b) => a.name.compareTo(b.name));
