@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter_timezone/flutter_timezone.dart';
 import 'package:hive_ce/hive.dart';
+import 'package:permission_handler/permission_handler.dart' as ph;
 import 'package:timezone/data/latest_all.dart' as tzdata;
 import 'package:timezone/timezone.dart' as tz;
 
@@ -30,12 +31,19 @@ class ReminderService {
 
   bool get supported => _supported;
 
-  // Channel ID bumped to _v2 because Android caches channel properties at
-  // first creation and won't let later code change them. Anyone upgrading
-  // from a build that created the v1 channel without sound gets a fresh
-  // channel; the old empty one is also deleted below.
-  static const _channelId = 'medication_reminders_v2';
-  static const _legacyChannelId = 'medication_reminders';
+  // Channel ID is bumped each time the channel's audio attributes change,
+  // because Android locks channel properties at first creation and the
+  // only way to "edit" them is to create a fresh channel.
+  //
+  // v3: switched audio to the **alarm** stream so the sound plays at
+  // alarm volume (not the easily-muted notification volume) and bypasses
+  // Do Not Disturb — same behaviour as the OS Clock app's alarms, which
+  // is what users expect for medication reminders.
+  static const _channelId = 'medication_reminders_v3';
+  static const _legacyChannelIds = <String>[
+    'medication_reminders', // v1: no explicit sound
+    'medication_reminders_v2', // v2: sound on but routed via notification stream
+  ];
 
   Future<void> init() async {
     if (_ready) return;
@@ -78,12 +86,13 @@ class ReminderService {
       if (Platform.isAndroid) {
         final android = _plugin.resolvePlatformSpecificImplementation<
             AndroidFlutterLocalNotificationsPlugin>();
-        // Clean up the v1 channel from older installs so it doesn't show
-        // up forever in Android Settings → App → Notifications as a stray
-        // silent channel.
-        try {
-          await android?.deleteNotificationChannel(_legacyChannelId);
-        } catch (_) {/* didn't exist */}
+        // Clean up older channels so the user doesn't see "Medication
+        // reminders" / "v2" leftover entries in Android system settings.
+        for (final legacy in _legacyChannelIds) {
+          try {
+            await android?.deleteNotificationChannel(legacy);
+          } catch (_) {/* didn't exist */}
+        }
         await android?.createNotificationChannel(
           const AndroidNotificationChannel(
             _channelId,
@@ -92,6 +101,9 @@ class ReminderService {
             importance: Importance.max,
             playSound: true,
             enableVibration: true,
+            // Route through the alarm audio stream — plays at alarm
+            // volume + bypasses Do Not Disturb, matching the Clock app.
+            audioAttributesUsage: AudioAttributesUsage.alarm,
           ),
         );
       }
@@ -108,9 +120,17 @@ class ReminderService {
     }
   }
 
-  /// Requests notification permission where the OS gates it (Android 13+
-  /// `POST_NOTIFICATIONS`, Android 12+ exact-alarm, iOS/macOS alert+sound).
-  /// Returns true if granted or not required.
+  /// Requests every permission the medication reminder pipeline needs:
+  /// - `POST_NOTIFICATIONS` (Android 13+) so notifications can be shown
+  /// - `SCHEDULE_EXACT_ALARM` (Android 12+) so they fire on time
+  /// - `IGNORE_BATTERY_OPTIMIZATIONS` so the alarm survives Doze / app
+  ///   being closed (the reason most "no notification after I close the
+  ///   app" reports happen on Xiaomi / Samsung / Vivo / Realme / Oppo)
+  /// - iOS/macOS alert + sound + badge
+  ///
+  /// Returns true if the notification permission specifically was granted.
+  /// The other two are best-effort — the user can decline them and the
+  /// app still works (just less reliably while the app is killed).
   Future<bool> requestPermission() async {
     if (!_supported || kIsWeb) return false;
     try {
@@ -118,9 +138,11 @@ class ReminderService {
         final android = _plugin.resolvePlatformSpecificImplementation<
             AndroidFlutterLocalNotificationsPlugin>();
         final notif = await android?.requestNotificationsPermission();
-        // Android 12+ requires explicit user consent for exact alarms; we
-        // want exact for medication timing (within a minute of the dose).
         await android?.requestExactAlarmsPermission();
+        // The OS prompts the user with a system dialog ("Allow MediTracker
+        // to ignore battery optimizations?") — the same dialog bKash /
+        // Daraz / WhatsApp use for this exact reason.
+        await ph.Permission.ignoreBatteryOptimizations.request();
         return notif ?? true;
       }
       if (Platform.isIOS || Platform.isMacOS) {
@@ -151,6 +173,7 @@ class ReminderService {
           enableVibration: true,
           fullScreenIntent: false,
           visibility: NotificationVisibility.public,
+          audioAttributesUsage: AudioAttributesUsage.alarm,
         ),
         iOS: DarwinNotificationDetails(
           presentAlert: true,
@@ -244,21 +267,48 @@ class ReminderService {
     }
   }
 
-  /// Snapshot of the relevant OS permissions so the UI can show the user
-  /// what's actually granted. Returns null fields on non-Android platforms.
-  Future<({bool? notifications, bool? exactAlarms})> permissionStatus() async {
+  /// Snapshot of every reliability-relevant permission so the UI can show
+  /// the user exactly what's blocking notifications. Returns null fields
+  /// on non-Android platforms (iOS / desktop don't expose this trio).
+  Future<
+      ({
+        bool? notifications,
+        bool? exactAlarms,
+        bool? batteryOptimization,
+      })> permissionStatus() async {
     if (!_supported || kIsWeb || !Platform.isAndroid) {
-      return (notifications: null, exactAlarms: null);
+      return (
+        notifications: null,
+        exactAlarms: null,
+        batteryOptimization: null,
+      );
     }
     try {
       final android = _plugin.resolvePlatformSpecificImplementation<
           AndroidFlutterLocalNotificationsPlugin>();
       final notif = await android?.areNotificationsEnabled();
       final exact = await android?.canScheduleExactNotifications();
-      return (notifications: notif, exactAlarms: exact);
+      final battery = await ph.Permission.ignoreBatteryOptimizations.isGranted;
+      return (
+        notifications: notif,
+        exactAlarms: exact,
+        batteryOptimization: battery,
+      );
     } catch (_) {
-      return (notifications: null, exactAlarms: null);
+      return (
+        notifications: null,
+        exactAlarms: null,
+        batteryOptimization: null,
+      );
     }
+  }
+
+  /// Opens the system app-settings page for MediTracker — useful when the
+  /// user has previously denied a permission and the runtime dialog won't
+  /// show again, or when they need OEM-specific autostart toggles
+  /// (Xiaomi MIUI, Samsung "Sleeping apps", etc.) that have no public API.
+  Future<void> openAppSettings() async {
+    await ph.openAppSettings();
   }
 
   Future<void> cancel(String medId) async {

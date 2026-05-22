@@ -15,8 +15,10 @@ void main() {
     tmp = await Directory.systemTemp.createTemp('meditracker_test');
     await MediStore.instance.initForTesting(tmp.path);
     await SettingsStore.instance.init();
-    // Skip the Welcome screen so we land directly on HomeShell.
+    // Skip the Welcome + permission-onboarding screens so we land
+    // directly on HomeShell for the smoke test.
     SettingsStore.instance.onboardingComplete = true;
+    SettingsStore.instance.permissionsOnboardingComplete = true;
   });
 
   tearDown(() async {

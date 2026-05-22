@@ -181,4 +181,14 @@ class SettingsStore extends ChangeNotifier {
     _box.put('onboarded', v);
     notifyListeners();
   }
+
+  /// True once the user has been walked through the notification /
+  /// alarm / battery permission prompts. Lets us run the bKash-style
+  /// first-launch permission flow exactly once.
+  bool get permissionsOnboardingComplete =>
+      _box.get('perm_onboarded', defaultValue: false) as bool;
+  set permissionsOnboardingComplete(bool v) {
+    _box.put('perm_onboarded', v);
+    notifyListeners();
+  }
 }

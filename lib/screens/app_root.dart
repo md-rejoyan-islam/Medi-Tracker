@@ -2,15 +2,19 @@ import 'package:flutter/material.dart';
 
 import '../data/settings_store.dart';
 import 'home_shell.dart';
+import 'permissions_onboarding_screen.dart';
 import 'welcome_screen.dart';
 
-/// Reactively swaps between [WelcomeScreen] and [HomeShell] based on
-/// [SettingsStore.onboardingComplete].
+/// Routes the first-launch flow:
 ///
-/// Keeping this swap inside the navigator (instead of doing both a state
-/// update *and* a `Navigator.pushReplacement` in Welcome) avoids a race
-/// where MaterialApp rebuilds mid-navigation and the pushed route is lost
-/// — which is why the Login / Create buttons were ending up "blank".
+/// 1. **Welcome** until the user picks Guest / Login / Register.
+/// 2. **Permissions onboarding** (bKash-style) until they accept or skip
+///    the notification / alarm / battery requests.
+/// 3. **HomeShell** for everything afterward.
+///
+/// Both gates are single-flags in [SettingsStore] so we never nag the
+/// user twice. The "Re-run permission setup" tile in Settings flips the
+/// permissions flag back off if they want to redo it.
 class AppRoot extends StatelessWidget {
   const AppRoot({super.key});
 
@@ -19,9 +23,12 @@ class AppRoot extends StatelessWidget {
     return AnimatedBuilder(
       animation: SettingsStore.instance,
       builder: (context, _) {
-        return SettingsStore.instance.onboardingComplete
-            ? const HomeShell()
-            : const WelcomeScreen();
+        final s = SettingsStore.instance;
+        if (!s.onboardingComplete) return const WelcomeScreen();
+        if (!s.permissionsOnboardingComplete) {
+          return const PermissionsOnboardingScreen();
+        }
+        return const HomeShell();
       },
     );
   }

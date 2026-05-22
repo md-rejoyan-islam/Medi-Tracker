@@ -21,6 +21,10 @@
     <uses-permission android:name="android.permission.VIBRATE" />
     <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
     <uses-permission android:name="android.permission.USE_EXACT_ALARM" />
+    <!-- Required so scheduled medication alarms still fire after the app
+         is closed or the phone enters Doze (the main reason alarms in
+         "I closed the app" reports go silent on Xiaomi/Samsung/etc). -->
+    <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
 
     <!-- Medi Tracker: spec §1 onboarding -->
     <!-- Camera: mobile_scanner reads the device QR code -->

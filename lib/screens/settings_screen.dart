@@ -97,6 +97,17 @@ class SettingsScreen extends StatelessWidget {
               ),
               const _PermissionStatusTile(),
               ListTile(
+                leading: const Icon(Icons.assignment_turned_in_outlined),
+                title: const Text('Re-run permission setup'),
+                subtitle: const Text(
+                  'Walk through the notification / alarm / battery '
+                  'prompts again.',
+                ),
+                onTap: () {
+                  SettingsStore.instance.permissionsOnboardingComplete = false;
+                },
+              ),
+              ListTile(
                 leading: const Icon(Icons.notifications_active),
                 title: const Text('Send test notification'),
                 subtitle: const Text(
@@ -282,7 +293,8 @@ class _PermissionStatusTile extends StatefulWidget {
 }
 
 class _PermissionStatusTileState extends State<_PermissionStatusTile> {
-  ({bool? notifications, bool? exactAlarms})? _status;
+  ({bool? notifications, bool? exactAlarms, bool? batteryOptimization})?
+      _status;
 
   @override
   void initState() {
@@ -300,42 +312,113 @@ class _PermissionStatusTileState extends State<_PermissionStatusTile> {
     await _refresh();
   }
 
+  Widget _row(BuildContext context, String label, bool ok) {
+    final scheme = Theme.of(context).colorScheme;
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 2),
+      child: Row(
+        children: [
+          Icon(
+            ok ? Icons.check_circle : Icons.cancel,
+            size: 16,
+            color: ok ? scheme.primary : scheme.error,
+          ),
+          const SizedBox(width: 8),
+          Expanded(child: Text(label)),
+          Text(
+            ok ? 'granted' : 'DENIED',
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: ok ? scheme.primary : scheme.error,
+                  fontWeight: FontWeight.w600,
+                ),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final s = _status;
     if (s == null) {
       return const ListTile(
         leading: Icon(Icons.lock_outline),
-        title: Text('Notification permissions'),
+        title: Text('Reminder reliability'),
         subtitle: Text('Checking…'),
       );
     }
     if (s.notifications == null && s.exactAlarms == null) {
-      // Platform doesn't expose this (iOS / desktop) — hide the row.
       return const SizedBox.shrink();
     }
     final notifOk = s.notifications == true;
     final exactOk = s.exactAlarms == true;
-    final allOk = notifOk && exactOk;
-    return ListTile(
-      leading: Icon(
-        allOk ? Icons.verified : Icons.warning_amber,
-        color: allOk
-            ? Theme.of(context).colorScheme.primary
-            : Theme.of(context).colorScheme.error,
+    final batteryOk = s.batteryOptimization == true;
+    final allOk = notifOk && exactOk && batteryOk;
+    final scheme = Theme.of(context).colorScheme;
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
+      child: Card(
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Icon(
+                    allOk ? Icons.verified : Icons.warning_amber,
+                    color: allOk ? scheme.primary : scheme.error,
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'Reminder reliability',
+                      style: Theme.of(context).textTheme.titleMedium,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              _row(context, 'Show notifications', notifOk),
+              _row(context, 'Exact alarm timing', exactOk),
+              _row(context, 'Ignore battery optimization', batteryOk),
+              if (!allOk) ...[
+                const SizedBox(height: 8),
+                Text(
+                  batteryOk
+                      ? 'Tap Fix and grant the prompted permissions.'
+                      : 'Without battery optimization exemption Android '
+                          'may kill scheduled alarms when the app is closed.',
+                  style: Theme.of(context).textTheme.bodySmall,
+                ),
+              ],
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  if (!allOk) ...[
+                    Expanded(
+                      child: FilledButton.icon(
+                        onPressed: _request,
+                        icon: const Icon(Icons.security),
+                        label: const Text('Fix permissions'),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                  ],
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      onPressed: () =>
+                          ReminderService.instance.openAppSettings(),
+                      icon: const Icon(Icons.tune),
+                      label: const Text('App settings'),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
       ),
-      title: const Text('Notification permissions'),
-      subtitle: Text(
-        'Notifications: ${notifOk ? "granted" : "DENIED"}  ·  '
-        'Exact alarms: ${exactOk ? "granted" : "DENIED"}',
-      ),
-      trailing: allOk
-          ? null
-          : FilledButton(
-              onPressed: _request,
-              child: const Text('Fix'),
-            ),
-      onTap: _request,
     );
   }
 }
