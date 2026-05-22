@@ -18,6 +18,32 @@ class SettingsScreen extends StatelessWidget {
         builder: (context, _) {
           return ListView(
             children: [
+              const _SectionHeader('Appearance'),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 4, 16, 16),
+                child: SegmentedButton<ThemeMode>(
+                  segments: const [
+                    ButtonSegment(
+                      value: ThemeMode.light,
+                      icon: Icon(Icons.light_mode_outlined),
+                      label: Text('Light'),
+                    ),
+                    ButtonSegment(
+                      value: ThemeMode.dark,
+                      icon: Icon(Icons.dark_mode_outlined),
+                      label: Text('Dark'),
+                    ),
+                    ButtonSegment(
+                      value: ThemeMode.system,
+                      icon: Icon(Icons.brightness_auto_outlined),
+                      label: Text('System'),
+                    ),
+                  ],
+                  selected: {s.themeMode},
+                  onSelectionChanged: (set) => s.themeMode = set.first,
+                ),
+              ),
+
               const _SectionHeader('Audio'),
               RadioGroup<ReminderLanguage>(
                 groupValue: s.language,

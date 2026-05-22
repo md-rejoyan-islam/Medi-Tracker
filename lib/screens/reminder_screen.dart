@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import '../data/medi_store.dart';
 import '../models/dose_log.dart';
 import '../models/medication.dart';
+import '../theme/app_theme.dart';
 
 /// Spec §6 Reminder Screen: full-screen "Medication Due" prompt for a single
 /// scheduled dose, with the drawer number called out and Taken / Skip
@@ -67,7 +68,8 @@ class _ReminderScreenState extends State<ReminderScreen>
         .format(context);
     // Mirrors the spec's RGB LED table: green-blinking when due, red when
     // overdue. White-blinking (BLE pair) lives in the Pair screen.
-    final cueColor = overdue ? Colors.red : Colors.green;
+    final status = context.statusColors;
+    final cueColor = overdue ? status.danger : status.success;
 
     return Scaffold(
       backgroundColor: Theme.of(context).colorScheme.surface,

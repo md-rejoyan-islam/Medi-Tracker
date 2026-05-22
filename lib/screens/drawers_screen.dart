@@ -5,6 +5,7 @@ import '../data/adherence.dart';
 import '../data/medi_store.dart';
 import '../models/dose_log.dart';
 import '../models/medication.dart';
+import '../theme/app_theme.dart';
 import 'medication_edit_screen.dart';
 import 'reminder_screen.dart';
 
@@ -162,31 +163,31 @@ class _DrawerTile extends StatelessWidget {
   ) {
     if (medication == null) {
       return (
-        scheme.surfaceContainerHighest,
+        scheme.surfaceContainer,
         scheme.outlineVariant,
         scheme.onSurfaceVariant,
         null,
       );
     }
+    final s = context.statusColors;
     final c = cue;
     if (c != null) {
       if (c.isPending && c.scheduledTime.isBefore(now)) {
-        return (Colors.red.shade100, Colors.red, Colors.red.shade900,
-            'OVERDUE');
+        return (s.dangerContainer, s.danger, s.onDangerContainer, 'OVERDUE');
       }
       switch (c.log?.status) {
         case DoseStatus.taken:
-          return (Colors.green.shade100, Colors.green,
-              Colors.green.shade900, 'TAKEN');
+          return (s.successContainer, s.success, s.onSuccessContainer,
+              'TAKEN');
         case DoseStatus.late:
-          return (Colors.orange.shade100, Colors.orange,
-              Colors.orange.shade900, 'LATE');
+          return (s.warningContainer, s.warning, s.onWarningContainer,
+              'LATE');
         case DoseStatus.missed:
-          return (Colors.red.shade100, Colors.red,
-              Colors.red.shade900, 'MISSED');
+          return (s.dangerContainer, s.danger, s.onDangerContainer,
+              'MISSED');
         case DoseStatus.skipped:
-          return (Colors.orange.shade50, Colors.orange.shade300,
-              Colors.orange.shade900, 'SKIPPED');
+          return (s.warningContainer, s.warning, s.onWarningContainer,
+              'SKIPPED');
         case null:
           // Future pending today
           return (scheme.primaryContainer, scheme.primary,

@@ -5,6 +5,7 @@ import 'data/settings_store.dart';
 import 'screens/home_shell.dart';
 import 'screens/welcome_screen.dart';
 import 'services/reminder_service.dart';
+import 'theme/app_theme.dart';
 
 /// Process-wide navigator key so background services (e.g. the in-app
 /// reminder watcher) can push routes without needing a `BuildContext`.
@@ -24,24 +25,21 @@ class MediApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'MediTracker',
-      debugShowCheckedModeBanner: false,
-      navigatorKey: rootNavigatorKey,
-      theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.teal),
-        useMaterial3: true,
-      ),
-      darkTheme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(
-          seedColor: Colors.teal,
-          brightness: Brightness.dark,
-        ),
-        useMaterial3: true,
-      ),
-      home: SettingsStore.instance.onboardingComplete
-          ? const HomeShell()
-          : const WelcomeScreen(),
+    return AnimatedBuilder(
+      animation: SettingsStore.instance,
+      builder: (context, _) {
+        return MaterialApp(
+          title: 'MediTracker',
+          debugShowCheckedModeBanner: false,
+          navigatorKey: rootNavigatorKey,
+          theme: AppTheme.light(),
+          darkTheme: AppTheme.dark(),
+          themeMode: SettingsStore.instance.themeMode,
+          home: SettingsStore.instance.onboardingComplete
+              ? const HomeShell()
+              : const WelcomeScreen(),
+        );
+      },
     );
   }
 }

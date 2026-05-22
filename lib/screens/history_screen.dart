@@ -4,6 +4,7 @@ import 'package:hive_ce_flutter/hive_flutter.dart';
 import '../data/adherence.dart';
 import '../data/medi_store.dart';
 import '../models/dose_log.dart';
+import '../theme/app_theme.dart';
 import 'reports_screen.dart';
 
 /// Spec §7 + §8: per-dose daily history timeline and aggregated Reports
@@ -175,7 +176,7 @@ class _DoseLine extends StatelessWidget {
   Widget build(BuildContext context) {
     final time = TimeOfDay.fromDateTime(o.scheduledTime).format(context);
     final m = o.medication;
-    final (label, color, icon) = _statusUi(o);
+    final (label, color, icon) = _statusUi(o, context);
     return ListTile(
       dense: true,
       leading: Icon(icon, color: color),
@@ -191,22 +192,27 @@ class _DoseLine extends StatelessWidget {
     );
   }
 
-  (String, Color, IconData) _statusUi(DoseOccurrence o) {
+  (String, Color, IconData) _statusUi(DoseOccurrence o, BuildContext context) {
+    final s = context.statusColors;
     if (o.log != null) {
       switch (o.log!.status) {
         case DoseStatus.taken:
-          return ('Taken', Colors.green, Icons.check_circle);
+          return ('Taken', s.success, Icons.check_circle);
         case DoseStatus.late:
-          return ('Late', Colors.orange, Icons.access_time_filled);
+          return ('Late', s.warning, Icons.access_time_filled);
         case DoseStatus.skipped:
-          return ('Skipped', Colors.orange, Icons.do_not_disturb_on);
+          return ('Skipped', s.warning, Icons.do_not_disturb_on);
         case DoseStatus.missed:
-          return ('Missed', Colors.red, Icons.cancel);
+          return ('Missed', s.danger, Icons.cancel);
       }
     }
     if (o.scheduledTime.isBefore(now)) {
-      return ('Missed', Colors.red, Icons.cancel_outlined);
+      return ('Missed', s.danger, Icons.cancel_outlined);
     }
-    return ('Pending', Colors.grey, Icons.schedule);
+    return (
+      'Pending',
+      Theme.of(context).colorScheme.onSurfaceVariant,
+      Icons.schedule,
+    );
   }
 }

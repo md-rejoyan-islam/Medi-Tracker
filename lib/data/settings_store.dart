@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart' show ThemeMode;
 import 'package:hive_ce_flutter/hive_flutter.dart';
 
 /// Voice language used by the device for reminder prompts (spec §9).
@@ -52,6 +53,18 @@ class SettingsStore extends ChangeNotifier {
     if (_ready) return;
     _box = await Hive.openBox(_boxName);
     _ready = true;
+  }
+
+  // --- Appearance -------------------------------------------------------
+
+  /// User-chosen app theme. Defaults to [ThemeMode.system] so the OS
+  /// light/dark preference wins until the user picks one explicitly.
+  ThemeMode get themeMode => ThemeMode.values[
+      (_box.get('theme_mode', defaultValue: ThemeMode.system.index) as int)
+          .clamp(0, ThemeMode.values.length - 1)];
+  set themeMode(ThemeMode v) {
+    _box.put('theme_mode', v.index);
+    notifyListeners();
   }
 
   // --- Voice / reminder behaviour ---------------------------------------

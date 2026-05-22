@@ -5,6 +5,7 @@ import '../data/adherence.dart';
 import '../data/medi_store.dart';
 import '../data/settings_store.dart';
 import '../models/dose_log.dart';
+import '../theme/app_theme.dart';
 import 'reminder_screen.dart';
 
 /// Spec §2 Dashboard + the day's dose list.
@@ -111,7 +112,7 @@ class _DeviceCard extends StatelessWidget {
                   online
                       ? Icons.bluetooth_connected
                       : Icons.bluetooth_disabled,
-                  color: online ? Colors.green : scheme.outline,
+                  color: online ? context.statusColors.success : scheme.outline,
                 ),
                 const SizedBox(width: 8),
                 Expanded(
@@ -125,8 +126,13 @@ class _DeviceCard extends StatelessWidget {
                   visualDensity: VisualDensity.compact,
                   label: Text(online ? 'Paired' : 'Not paired'),
                   backgroundColor: online
-                      ? Colors.green.withValues(alpha: 0.15)
+                      ? context.statusColors.successContainer
                       : null,
+                  side: BorderSide(
+                    color: online
+                        ? context.statusColors.success
+                        : Theme.of(context).colorScheme.outlineVariant,
+                  ),
                 ),
               ],
             ),
@@ -182,7 +188,7 @@ class _DoseRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final time = TimeOfDay.fromDateTime(o.scheduledTime).format(context);
     final overdue = o.isPending && o.scheduledTime.isBefore(now);
-    final (color, icon) = _stylize(o, overdue);
+    final (color, icon) = _stylize(o, overdue, context);
     return ListTile(
       contentPadding: EdgeInsets.zero,
       leading: Icon(icon, color: color),
@@ -242,21 +248,23 @@ class _DoseRow extends StatelessWidget {
     );
   }
 
-  (Color?, IconData) _stylize(DoseOccurrence o, bool overdue) {
+  (Color?, IconData) _stylize(
+      DoseOccurrence o, bool overdue, BuildContext context) {
+    final s = context.statusColors;
     if (o.log != null) {
       switch (o.log!.status) {
         case DoseStatus.taken:
-          return (Colors.green, Icons.check_circle);
+          return (s.success, Icons.check_circle);
         case DoseStatus.late:
-          return (Colors.orange, Icons.access_time_filled);
+          return (s.warning, Icons.access_time_filled);
         case DoseStatus.skipped:
-          return (Colors.orange, Icons.do_not_disturb_on);
+          return (s.warning, Icons.do_not_disturb_on);
         case DoseStatus.missed:
-          return (Colors.red, Icons.cancel);
+          return (s.danger, Icons.cancel);
       }
     }
     return overdue
-        ? (Colors.red, Icons.error_outline)
+        ? (s.danger, Icons.error_outline)
         : (null, Icons.schedule);
   }
 }

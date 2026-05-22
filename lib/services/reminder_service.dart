@@ -1,5 +1,6 @@
-import 'dart:io';
+import 'dart:io' show Platform;
 
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter_timezone/flutter_timezone.dart';
 import 'package:hive_ce/hive.dart';
@@ -34,9 +35,14 @@ class ReminderService {
   Future<void> init() async {
     if (_ready) return;
     _ready = true;
-    _supported =
-        Platform.isAndroid || Platform.isIOS || Platform.isMacOS ||
-            Platform.isLinux;
+    if (kIsWeb) {
+      _supported = false;
+      return;
+    }
+    _supported = Platform.isAndroid ||
+        Platform.isIOS ||
+        Platform.isMacOS ||
+        Platform.isLinux;
     if (!_supported) return;
 
     try {
@@ -66,7 +72,7 @@ class ReminderService {
   /// Requests notification permission where the OS gates it (Android 13+,
   /// iOS/macOS). Returns true if granted or not required.
   Future<bool> requestPermission() async {
-    if (!_supported) return false;
+    if (!_supported || kIsWeb) return false;
     try {
       if (Platform.isAndroid) {
         final android = _plugin.resolvePlatformSpecificImplementation<

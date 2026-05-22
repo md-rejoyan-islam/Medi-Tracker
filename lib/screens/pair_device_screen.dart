@@ -1,5 +1,6 @@
-import 'dart:io';
+import 'dart:io' show Platform;
 
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_blue_plus/flutter_blue_plus.dart';
 import 'package:flutter_nfc_kit/flutter_nfc_kit.dart';
@@ -66,7 +67,7 @@ class _PairDeviceScreenState extends State<PairDeviceScreen> {
   }
 
   Future<void> _readNfc() async {
-    if (!(Platform.isAndroid || Platform.isIOS)) {
+    if (kIsWeb || !(Platform.isAndroid || Platform.isIOS)) {
       _snack('NFC is only available on mobile.');
       return;
     }

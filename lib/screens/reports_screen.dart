@@ -4,6 +4,7 @@ import 'package:hive_ce_flutter/hive_flutter.dart';
 
 import '../data/adherence.dart';
 import '../data/medi_store.dart';
+import '../theme/app_theme.dart';
 
 /// Spec §8 Reports: weekly summary + Daily / Weekly / Monthly charts.
 class ReportsTab extends StatefulWidget {
@@ -161,23 +162,28 @@ class _WeekSummary extends StatelessWidget {
                   '$pct%',
                   style:
                       Theme.of(context).textTheme.displayMedium?.copyWith(
-                            fontWeight: FontWeight.bold,
+                            fontWeight: FontWeight.w700,
                             color: _rateColor(stats.rate, context),
                           ),
                 ),
                 const SizedBox(width: 24),
                 Expanded(
-                  child: Wrap(
-                    spacing: 16,
-                    runSpacing: 4,
-                    children: [
-                      _legend(context, 'Taken', stats.taken, Colors.green),
-                      _legend(context, 'Late', stats.late, Colors.orange),
-                      _legend(context, 'Missed', stats.missed, Colors.red),
-                      _legend(context, 'Skipped', stats.skipped,
-                          Colors.orange.shade300),
-                    ],
-                  ),
+                  child: Builder(builder: (context) {
+                    final s = context.statusColors;
+                    return Wrap(
+                      spacing: 16,
+                      runSpacing: 4,
+                      children: [
+                        _legend(context, 'Taken', stats.taken, s.success),
+                        _legend(context, 'Late', stats.late, s.warning),
+                        _legend(context, 'Missed', stats.missed, s.danger),
+                        _legend(context, 'Skipped', stats.skipped,
+                            Theme.of(context)
+                                .colorScheme
+                                .onSurfaceVariant),
+                      ],
+                    );
+                  }),
                 ),
               ],
             ),
@@ -287,7 +293,8 @@ class _AdherenceBarChart extends StatelessWidget {
 }
 
 Color _rateColor(double rate, BuildContext context) {
-  if (rate >= 0.8) return Colors.green;
-  if (rate >= 0.5) return Colors.orange;
-  return Theme.of(context).colorScheme.error;
+  final s = context.statusColors;
+  if (rate >= 0.8) return s.success;
+  if (rate >= 0.5) return s.warning;
+  return s.danger;
 }
