@@ -26,6 +26,7 @@ class _PermissionsOnboardingScreenState
     extends State<PermissionsOnboardingScreen> {
   bool _working = false;
   bool _autoFired = false;
+  bool _promptsDone = false;
 
   @override
   void initState() {
@@ -35,22 +36,40 @@ class _PermissionsOnboardingScreenState
     // bKash. The screen still renders behind the dialogs so users see the
     // context for what they're granting. A small delay lets the screen
     // paint first so the prompts don't cover a blank background.
+    //
+    // Crucially we do NOT auto-dismiss after the prompts resolve. On a
+    // re-run from Settings the permissions are already granted so the
+    // request returns instantly — auto-closing here would make the screen
+    // flash and disappear. Instead we wait for the user to tap Continue.
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       await Future<void>.delayed(const Duration(milliseconds: 350));
-      if (mounted && !_autoFired) {
-        _autoFired = true;
-        await _allowAll();
-      }
+      if (!mounted || _autoFired) return;
+      _autoFired = true;
+      await _requestOnly();
     });
   }
 
-  Future<void> _allowAll() async {
+  /// Triggers system permission prompts but does NOT navigate away.
+  Future<void> _requestOnly() async {
     setState(() => _working = true);
     try {
       await ReminderService.instance.requestPermission();
     } finally {
-      _finish();
+      if (mounted) {
+        setState(() {
+          _working = false;
+          _promptsDone = true;
+        });
+      }
     }
+  }
+
+  /// User explicitly tapped the primary CTA — request once more in case
+  /// they hadn't acted, then dismiss the screen.
+  Future<void> _allowAll() async {
+    _autoFired = true; // lock out a racing auto-fire
+    await _requestOnly();
+    _finish();
   }
 
   void _skip() => _finish();
@@ -131,7 +150,9 @@ class _PermissionsOnboardingScreenState
               ),
               const Spacer(),
               FilledButton.icon(
-                onPressed: _working ? null : _allowAll,
+                onPressed: _working
+                    ? null
+                    : (_promptsDone ? _finish : _allowAll),
                 icon: _working
                     ? const SizedBox(
                         width: 18,
@@ -141,7 +162,11 @@ class _PermissionsOnboardingScreenState
                     : const Icon(Icons.check),
                 label: Padding(
                   padding: const EdgeInsets.symmetric(vertical: 12),
-                  child: Text(_working ? 'Requesting…' : 'Allow & continue'),
+                  child: Text(
+                    _working
+                        ? 'Requesting…'
+                        : (_promptsDone ? 'Continue' : 'Allow & continue'),
+                  ),
                 ),
               ),
               const SizedBox(height: 8),
