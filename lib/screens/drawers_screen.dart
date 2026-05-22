@@ -6,6 +6,7 @@ import '../data/medi_store.dart';
 import '../models/dose_log.dart';
 import '../models/medication.dart';
 import '../theme/app_theme.dart';
+import '../widgets/minute_ticker.dart';
 import 'medication_edit_screen.dart';
 import 'reminder_screen.dart';
 
@@ -25,7 +26,8 @@ class DrawersScreen extends StatelessWidget {
     ]);
     return Scaffold(
       appBar: AppBar(title: const Text('Drawers')),
-      body: AnimatedBuilder(
+      body: MinuteTicker(
+        child: AnimatedBuilder(
         animation: listenable,
         builder: (context, _) {
           final byDrawer = <int, Medication>{};
@@ -69,6 +71,7 @@ class DrawersScreen extends StatelessWidget {
             ),
           );
         },
+      ),
       ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => Navigator.of(context).push(

@@ -30,7 +30,12 @@ class ReminderService {
 
   bool get supported => _supported;
 
-  static const _channelId = 'medication_reminders';
+  // Channel ID bumped to _v2 because Android caches channel properties at
+  // first creation and won't let later code change them. Anyone upgrading
+  // from a build that created the v1 channel without sound gets a fresh
+  // channel; the old empty one is also deleted below.
+  static const _channelId = 'medication_reminders_v2';
+  static const _legacyChannelId = 'medication_reminders';
 
   Future<void> init() async {
     if (_ready) return;
@@ -73,6 +78,12 @@ class ReminderService {
       if (Platform.isAndroid) {
         final android = _plugin.resolvePlatformSpecificImplementation<
             AndroidFlutterLocalNotificationsPlugin>();
+        // Clean up the v1 channel from older installs so it doesn't show
+        // up forever in Android Settings → App → Notifications as a stray
+        // silent channel.
+        try {
+          await android?.deleteNotificationChannel(_legacyChannelId);
+        } catch (_) {/* didn't exist */}
         await android?.createNotificationChannel(
           const AndroidNotificationChannel(
             _channelId,
@@ -212,6 +223,42 @@ class ReminderService {
       }
     }
     await _idBox?.put(m.id, ids);
+  }
+
+  /// Fires a notification immediately. Use it from Settings to confirm the
+  /// whole pipeline (channel, sound, permission) works without waiting for
+  /// a real dose time.
+  Future<bool> showTestNotification() async {
+    if (!_supported) return false;
+    try {
+      await requestPermission();
+      await _plugin.show(
+        9999,
+        'MediTracker test reminder',
+        'If you see this with sound, notifications are wired correctly.',
+        _details,
+      );
+      return true;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  /// Snapshot of the relevant OS permissions so the UI can show the user
+  /// what's actually granted. Returns null fields on non-Android platforms.
+  Future<({bool? notifications, bool? exactAlarms})> permissionStatus() async {
+    if (!_supported || kIsWeb || !Platform.isAndroid) {
+      return (notifications: null, exactAlarms: null);
+    }
+    try {
+      final android = _plugin.resolvePlatformSpecificImplementation<
+          AndroidFlutterLocalNotificationsPlugin>();
+      final notif = await android?.areNotificationsEnabled();
+      final exact = await android?.canScheduleExactNotifications();
+      return (notifications: notif, exactAlarms: exact);
+    } catch (_) {
+      return (notifications: null, exactAlarms: null);
+    }
   }
 
   Future<void> cancel(String medId) async {

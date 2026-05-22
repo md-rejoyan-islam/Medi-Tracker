@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../ble/pill_dispenser_service.dart';
 import '../data/settings_store.dart';
+import '../services/reminder_service.dart';
 import 'pair_device_screen.dart';
 import 'scan_screen.dart';
 
@@ -94,6 +95,16 @@ class SettingsScreen extends StatelessWidget {
                 value: s.inAppReminderPopup,
                 onChanged: (v) => s.inAppReminderPopup = v,
               ),
+              const _PermissionStatusTile(),
+              ListTile(
+                leading: const Icon(Icons.notifications_active),
+                title: const Text('Send test notification'),
+                subtitle: const Text(
+                  'Verify sound + delivery. Lock the phone first if '
+                  'you want to test when the app is closed.',
+                ),
+                onTap: () => _testNotification(context),
+              ),
 
               const _SectionHeader('Device'),
               ListTile(
@@ -182,6 +193,31 @@ class SettingsScreen extends StatelessWidget {
     if (name != null) s.deviceName = name;
   }
 
+  Future<void> _testNotification(BuildContext context) async {
+    final svc = ReminderService.instance;
+    if (!svc.supported) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Notifications are not supported on this platform.',
+          ),
+        ),
+      );
+      return;
+    }
+    final ok = await svc.showTestNotification();
+    if (!context.mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          ok
+              ? 'Test notification sent. Check the status bar.'
+              : 'Failed to send. Check notification permission.',
+        ),
+      ),
+    );
+  }
+
   Future<void> _syncTime(BuildContext context) async {
     final svc = PillDispenserService.instance;
     if (!svc.isAttached) {
@@ -230,6 +266,76 @@ class _SectionHeader extends StatelessWidget {
               color: Theme.of(context).colorScheme.primary,
             ),
       ),
+    );
+  }
+}
+
+/// Live display of the Android notification + exact-alarm permission
+/// status. Tap to re-request the permissions (Android prompts the user
+/// once per app install for notifications; for exact alarms it deep-links
+/// into system settings on API 31+).
+class _PermissionStatusTile extends StatefulWidget {
+  const _PermissionStatusTile();
+
+  @override
+  State<_PermissionStatusTile> createState() => _PermissionStatusTileState();
+}
+
+class _PermissionStatusTileState extends State<_PermissionStatusTile> {
+  ({bool? notifications, bool? exactAlarms})? _status;
+
+  @override
+  void initState() {
+    super.initState();
+    _refresh();
+  }
+
+  Future<void> _refresh() async {
+    final s = await ReminderService.instance.permissionStatus();
+    if (mounted) setState(() => _status = s);
+  }
+
+  Future<void> _request() async {
+    await ReminderService.instance.requestPermission();
+    await _refresh();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final s = _status;
+    if (s == null) {
+      return const ListTile(
+        leading: Icon(Icons.lock_outline),
+        title: Text('Notification permissions'),
+        subtitle: Text('Checking…'),
+      );
+    }
+    if (s.notifications == null && s.exactAlarms == null) {
+      // Platform doesn't expose this (iOS / desktop) — hide the row.
+      return const SizedBox.shrink();
+    }
+    final notifOk = s.notifications == true;
+    final exactOk = s.exactAlarms == true;
+    final allOk = notifOk && exactOk;
+    return ListTile(
+      leading: Icon(
+        allOk ? Icons.verified : Icons.warning_amber,
+        color: allOk
+            ? Theme.of(context).colorScheme.primary
+            : Theme.of(context).colorScheme.error,
+      ),
+      title: const Text('Notification permissions'),
+      subtitle: Text(
+        'Notifications: ${notifOk ? "granted" : "DENIED"}  ·  '
+        'Exact alarms: ${exactOk ? "granted" : "DENIED"}',
+      ),
+      trailing: allOk
+          ? null
+          : FilledButton(
+              onPressed: _request,
+              child: const Text('Fix'),
+            ),
+      onTap: _request,
     );
   }
 }

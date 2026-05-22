@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../main.dart' show rootNavigatorKey;
 import '../services/in_app_reminder_watcher.dart';
+import '../widgets/premium_nav_bar.dart';
 import 'dashboard_screen.dart';
 import 'drawers_screen.dart';
 import 'history_screen.dart';
@@ -45,33 +46,33 @@ class _HomeShellState extends State<HomeShell> {
   Widget build(BuildContext context) {
     return Scaffold(
       body: IndexedStack(index: _index, children: _tabs),
-      bottomNavigationBar: NavigationBar(
+      bottomNavigationBar: PremiumNavBar(
         selectedIndex: _index,
         onDestinationSelected: (i) => setState(() => _index = i),
         destinations: const [
-          NavigationDestination(
-            icon: Icon(Icons.dashboard_outlined),
-            selectedIcon: Icon(Icons.dashboard),
+          PremiumNavDestination(
+            icon: Icons.dashboard_outlined,
+            selectedIcon: Icons.dashboard,
             label: 'Dashboard',
           ),
-          NavigationDestination(
-            icon: Icon(Icons.medication_outlined),
-            selectedIcon: Icon(Icons.medication),
+          PremiumNavDestination(
+            icon: Icons.medication_outlined,
+            selectedIcon: Icons.medication,
             label: 'Meds',
           ),
-          NavigationDestination(
-            icon: Icon(Icons.grid_view_outlined),
-            selectedIcon: Icon(Icons.grid_view),
+          PremiumNavDestination(
+            icon: Icons.grid_view_outlined,
+            selectedIcon: Icons.grid_view,
             label: 'Drawers',
           ),
-          NavigationDestination(
-            icon: Icon(Icons.insights_outlined),
-            selectedIcon: Icon(Icons.insights),
+          PremiumNavDestination(
+            icon: Icons.insights_outlined,
+            selectedIcon: Icons.insights,
             label: 'History',
           ),
-          NavigationDestination(
-            icon: Icon(Icons.settings_outlined),
-            selectedIcon: Icon(Icons.settings),
+          PremiumNavDestination(
+            icon: Icons.settings_outlined,
+            selectedIcon: Icons.settings,
             label: 'Settings',
           ),
         ],

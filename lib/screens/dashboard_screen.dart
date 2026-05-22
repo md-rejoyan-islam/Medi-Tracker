@@ -6,6 +6,7 @@ import '../data/medi_store.dart';
 import '../data/settings_store.dart';
 import '../models/dose_log.dart';
 import '../theme/app_theme.dart';
+import '../widgets/minute_ticker.dart';
 import 'reminder_screen.dart';
 
 /// Spec §2 Dashboard + the day's dose list.
@@ -35,7 +36,8 @@ class DashboardScreen extends StatelessWidget {
           ],
         ),
       ),
-      body: AnimatedBuilder(
+      body: MinuteTicker(
+        child: AnimatedBuilder(
         animation: listenable,
         builder: (context, _) {
           final now = DateTime.now();
@@ -82,6 +84,7 @@ class DashboardScreen extends StatelessWidget {
             ],
           );
         },
+      ),
       ),
     );
   }

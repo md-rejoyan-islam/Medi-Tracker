@@ -43,27 +43,29 @@ class _ReportsTabState extends State<ReportsTab> {
           padding: const EdgeInsets.all(16),
           children: [
             _WeekSummary(stats: weekly),
-            const SizedBox(height: 16),
-            Row(
-              children: [
-                Text('Adherence trend',
-                    style: Theme.of(context).textTheme.titleMedium),
-                const Spacer(),
-                SegmentedButton<_ChartRange>(
-                  segments: const [
-                    ButtonSegment(
-                        value: _ChartRange.daily, label: Text('Daily')),
-                    ButtonSegment(
-                        value: _ChartRange.weekly, label: Text('Weekly')),
-                    ButtonSegment(
-                        value: _ChartRange.monthly,
-                        label: Text('Monthly')),
-                  ],
-                  selected: {_range},
-                  onSelectionChanged: (s) =>
-                      setState(() => _range = s.first),
-                ),
-              ],
+            const SizedBox(height: 20),
+            Text('Adherence trend',
+                style: Theme.of(context).textTheme.titleMedium),
+            const SizedBox(height: 10),
+            // Range selector on its own row + full-width so the three
+            // segments always fit on narrow phones; horizontal scroll is a
+            // safety net for very small (≤320 dp) screens.
+            SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: SegmentedButton<_ChartRange>(
+                showSelectedIcon: false,
+                segments: const [
+                  ButtonSegment(
+                      value: _ChartRange.daily, label: Text('Daily')),
+                  ButtonSegment(
+                      value: _ChartRange.weekly, label: Text('Weekly')),
+                  ButtonSegment(
+                      value: _ChartRange.monthly, label: Text('Monthly')),
+                ],
+                selected: {_range},
+                onSelectionChanged: (s) =>
+                    setState(() => _range = s.first),
+              ),
             ),
             const SizedBox(height: 16),
             SizedBox(height: 220, child: _AdherenceBarChart(buckets: buckets)),

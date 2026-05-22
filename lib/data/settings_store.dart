@@ -93,11 +93,11 @@ class SettingsStore extends ChangeNotifier {
   }
 
   /// When true, the foreground app also pops the full-screen reminder when
-  /// a dose becomes due. Defaults to **false** — the spec's primary
-  /// reminder channel is the OS notification + device LED/audio, and most
-  /// users find an unsolicited in-app screen jarring.
+  /// a dose becomes due. Defaults to **true** so users see something when
+  /// they happen to be looking at the phone (the OS notification is also
+  /// shown). Can be turned off in Settings → Reminder.
   bool get inAppReminderPopup =>
-      _box.get('in_app_reminder', defaultValue: false) as bool;
+      _box.get('in_app_reminder', defaultValue: true) as bool;
   set inAppReminderPopup(bool v) {
     _box.put('in_app_reminder', v);
     notifyListeners();
