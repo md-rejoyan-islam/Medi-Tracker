@@ -48,12 +48,12 @@ class SettingsScreen extends StatelessWidget {
               const _SectionHeader('Audio'),
               RadioGroup<ReminderLanguage>(
                 groupValue: s.language,
-                onChanged: (v) => v == null ? null : s.language = v,
+                onChanged: (v) => v == null ? null : _changeLanguage(v),
                 child: Column(
                   children: [
                     for (final l in ReminderLanguage.values)
                       RadioListTile<ReminderLanguage>(
-                        title: Text(_languageLabel(l)),
+                        title: Text(l.label),
                         value: l,
                       ),
                   ],
@@ -169,12 +169,16 @@ class SettingsScreen extends StatelessWidget {
     );
   }
 
-  String _languageLabel(ReminderLanguage l) {
-    return switch (l) {
-      ReminderLanguage.english => 'English',
-      ReminderLanguage.bengali => 'Bengali (বাংলা)',
-      ReminderLanguage.bilingual => 'Bilingual (English + Bengali)',
-    };
+  /// Apply a language change everywhere it matters:
+  /// 1. Save the preference (drives in-app text + future schedules).
+  /// 2. Re-schedule all existing OS notifications so their lock-screen
+  ///    text immediately picks up the new language.
+  /// 3. Push the language to the connected MediTracker device so its
+  ///    audio firmware switches voice packs (inert until UUIDs land).
+  Future<void> _changeLanguage(ReminderLanguage v) async {
+    SettingsStore.instance.language = v;
+    await ReminderService.instance.resyncAll();
+    await PillDispenserService.instance.setLanguage(v.wire);
   }
 
   Future<void> _rename(BuildContext context) async {

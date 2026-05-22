@@ -8,7 +8,10 @@ import 'package:permission_handler/permission_handler.dart' as ph;
 import 'package:timezone/data/latest_all.dart' as tzdata;
 import 'package:timezone/timezone.dart' as tz;
 
+import '../data/medi_store.dart';
+import '../data/settings_store.dart';
 import '../models/medication.dart';
+import 'reminder_text.dart';
 
 /// Schedules and cancels local medication reminders.
 ///
@@ -35,15 +38,21 @@ class ReminderService {
   // because Android locks channel properties at first creation and the
   // only way to "edit" them is to create a fresh channel.
   //
-  // v3: switched audio to the **alarm** stream so the sound plays at
-  // alarm volume (not the easily-muted notification volume) and bypasses
-  // Do Not Disturb — same behaviour as the OS Clock app's alarms, which
-  // is what users expect for medication reminders.
-  static const _channelId = 'medication_reminders_v3';
+  // v4: in addition to the alarm-stream routing from v3, the channel now
+  // points at the system *alarm* sound URI. v3 relied on the default
+  // notification sound, which can be silenced to "None" at the OS level
+  // — even with alarm-stream routing — leaving the user with a silent
+  // notification. The alarm URI guarantees a tone is selected.
+  static const _channelId = 'medication_reminders_v4';
   static const _legacyChannelIds = <String>[
     'medication_reminders', // v1: no explicit sound
     'medication_reminders_v2', // v2: sound on but routed via notification stream
+    'medication_reminders_v3', // v3: alarm stream but default-notification sound
   ];
+
+  /// System alarm sound URI — the same tone the user has chosen in
+  /// *Settings → Sound → Alarm sound*. Works across all Android versions.
+  static const _alarmSoundUri = 'content://settings/system/alarm_alert';
 
   Future<void> init() async {
     if (_ready) return;
@@ -100,6 +109,9 @@ class ReminderService {
             description: 'Reminders to take your medication on time',
             importance: Importance.max,
             playSound: true,
+            // Explicit alarm tone — survives a "None" notification sound
+            // setting that would otherwise silence the channel.
+            sound: UriAndroidNotificationSound(_alarmSoundUri),
             enableVibration: true,
             // Route through the alarm audio stream — plays at alarm
             // volume + bypasses Do Not Disturb, matching the Clock app.
@@ -170,6 +182,7 @@ class ReminderService {
           priority: Priority.high,
           category: AndroidNotificationCategory.alarm,
           playSound: true,
+          sound: UriAndroidNotificationSound(_alarmSoundUri),
           enableVibration: true,
           fullScreenIntent: false,
           visibility: NotificationVisibility.public,
@@ -203,6 +216,10 @@ class ReminderService {
     await cancel(m.id);
     if (!m.active) return;
 
+    final lang = SettingsStore.instance.language;
+    final title = ReminderText.title(m.name, lang);
+    final body = ReminderText.body(m.dosage, lang);
+
     final ids = <int>[];
     final days = m.daysOfWeek.isEmpty ? <int>[0] : m.daysOfWeek;
     for (final minute in m.timesOfDay) {
@@ -215,8 +232,8 @@ class ReminderService {
           // adherence (vs. inexact which the OS may batch by 10+ min).
           await _plugin.zonedSchedule(
             id,
-            'Time for ${m.name}',
-            m.dosage.isEmpty ? 'Tap when taken' : m.dosage,
+            title,
+            body,
             when,
             _details,
             androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
@@ -231,8 +248,8 @@ class ReminderService {
           try {
             await _plugin.zonedSchedule(
               id,
-              'Time for ${m.name}',
-              m.dosage.isEmpty ? 'Tap when taken' : m.dosage,
+              title,
+              body,
               when,
               _details,
               androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
@@ -248,6 +265,16 @@ class ReminderService {
     await _idBox?.put(m.id, ids);
   }
 
+  /// Re-schedule every active medication's notifications. Used when the
+  /// reminder language changes — the title/body baked into already-
+  /// scheduled notifications don't auto-update, so we cancel and re-issue.
+  Future<void> resyncAll() async {
+    if (!_supported) return;
+    for (final m in MediStore.instance.medications) {
+      if (m.active) await sync(m);
+    }
+  }
+
   /// Fires a notification immediately. Use it from Settings to confirm the
   /// whole pipeline (channel, sound, permission) works without waiting for
   /// a real dose time.
@@ -255,10 +282,11 @@ class ReminderService {
     if (!_supported) return false;
     try {
       await requestPermission();
+      final lang = SettingsStore.instance.language;
       await _plugin.show(
         9999,
-        'MediTracker test reminder',
-        'If you see this with sound, notifications are wired correctly.',
+        ReminderText.testTitle(lang),
+        ReminderText.testBody(lang),
         _details,
       );
       return true;

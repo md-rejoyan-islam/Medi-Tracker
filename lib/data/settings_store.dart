@@ -2,8 +2,21 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart' show ThemeMode;
 import 'package:hive_ce_flutter/hive_flutter.dart';
 
-/// Voice language used by the device for reminder prompts (spec §9).
-enum ReminderLanguage { english, bengali, bilingual }
+/// Voice/reminder language. Also controls the text shown on OS
+/// notifications and the value pushed to the device over BLE.
+///
+/// [wire] is the stable code sent in the `{cmd:language,value:...}` BLE
+/// payload — keep it short so the device firmware can dispatch on it
+/// without parsing display strings.
+enum ReminderLanguage {
+  english('en', 'English'),
+  bengali('bn', 'Bengali (বাংলা)'),
+  bilingual('bilingual', 'Bilingual (English + Bengali)');
+
+  const ReminderLanguage(this.wire, this.label);
+  final String wire;
+  final String label;
+}
 
 /// A BLE device the user has previously paired with.
 ///

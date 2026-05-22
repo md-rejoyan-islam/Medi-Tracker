@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io' show Platform;
 
 import 'package:flutter/foundation.dart' show kIsWeb;
@@ -24,6 +25,7 @@ class _PairDeviceScreenState extends State<PairDeviceScreen> {
   final _ble = BleService.instance;
   List<ScanResult> _results = const [];
   bool _scanning = false;
+  BluetoothAdapterState _adapterState = BluetoothAdapterState.unknown;
 
   @override
   void initState() {
@@ -40,6 +42,10 @@ class _PairDeviceScreenState extends State<PairDeviceScreen> {
       (s) => mounted ? setState(() => _scanning = s) : null,
       onError: soft,
     );
+    _ble.adapterState.listen(
+      (s) => mounted ? setState(() => _adapterState = s) : null,
+      onError: soft,
+    );
   }
 
   Future<void> _startScan() async {
@@ -50,6 +56,24 @@ class _PairDeviceScreenState extends State<PairDeviceScreen> {
     if (!await _ble.ensurePermissions()) {
       _snack('Bluetooth permissions are required to pair.');
       return;
+    }
+    // Auto-enable Bluetooth if it's off — on Android, turnOn() shows the
+    // system "Allow MediTracker to enable Bluetooth?" prompt; we then wait
+    // up to 8 s for the adapter to actually come on before scanning so we
+    // don't throw the "Bluetooth is OFF" error you were seeing.
+    if (_adapterState != BluetoothAdapterState.on) {
+      _snack('Turning on Bluetooth…');
+      await _ble.turnOn();
+      try {
+        await _ble.adapterState
+            .firstWhere((s) => s == BluetoothAdapterState.on)
+            .timeout(const Duration(seconds: 8));
+      } on TimeoutException {
+        _snack(
+          'Please enable Bluetooth and try again.',
+        );
+        return;
+      }
     }
     try {
       await _ble.startScan();
