@@ -76,17 +76,31 @@ class MediStore {
     return null;
   }
 
+  /// How long after the scheduled time a "taken" log is considered Late
+  /// rather than on-time. Matches the spec's distinction between Taken and
+  /// Late and keeps the rule in one place.
+  static const lateGrace = Duration(minutes: 30);
+
   Future<void> recordDose({
     required String medicationId,
     required DateTime scheduledTime,
     required DoseStatus status,
     DoseSource source = DoseSource.manual,
   }) async {
+    final now = DateTime.now();
+    // Auto-upgrade a "taken" log past the grace period to "late". The caller
+    // tells us the user's intent (taken/skipped); we apply the timing rule.
+    var effective = status;
+    if (status == DoseStatus.taken &&
+        now.difference(scheduledTime) > lateGrace) {
+      effective = DoseStatus.late;
+    }
+
     final existing = logFor(medicationId, scheduledTime);
     if (existing != null) {
       existing
-        ..status = status
-        ..actualTime = DateTime.now()
+        ..status = effective
+        ..actualTime = now
         ..source = source;
       await _logs.put(existing.id, existing);
       return;
@@ -95,8 +109,8 @@ class MediStore {
       id: '${medicationId}_${scheduledTime.millisecondsSinceEpoch}',
       medicationId: medicationId,
       scheduledTime: scheduledTime,
-      status: status,
-      actualTime: DateTime.now(),
+      status: effective,
+      actualTime: now,
       source: source,
     );
     await _logs.put(log.id, log);

@@ -1,7 +1,12 @@
 import 'package:hive_ce/hive.dart';
 
 /// What happened to a scheduled dose.
-enum DoseStatus { taken, skipped, missed }
+///
+/// Order is append-only because [DoseStatus.values] indexes are persisted by
+/// the Hive adapter. The spec calls them Taken / Late / Missed; we also keep
+/// an internal `skipped` (user explicitly declined the dose) which the UI
+/// presents distinctly from "missed" (no decision recorded by deadline).
+enum DoseStatus { taken, skipped, missed, late }
 
 /// Where the log entry came from.
 enum DoseSource { manual, device }

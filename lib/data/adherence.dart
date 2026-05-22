@@ -22,17 +22,6 @@ class DoseOccurrence {
   bool get isPending => log == null;
 }
 
-/// Resolves the status of a scheduled occurrence.
-///
-/// If a log exists, its status wins. Otherwise an occurrence whose time is in
-/// the past (relative to [now]) counts as `missed`; a future one is treated
-/// as still scheduled — represented here as a null-log occurrence the caller
-/// renders as "pending".
-DoseStatus _resolve(DoseLog? log, DateTime scheduledTime, DateTime now) {
-  if (log != null) return log.status;
-  return scheduledTime.isBefore(now) ? DoseStatus.missed : DoseStatus.taken;
-}
-
 /// Builds the day's occurrences for [day], sorted by time then med name.
 ///
 /// `pending` future doses are returned with `log == null` and a status that
@@ -70,20 +59,23 @@ class AdherenceStats {
   AdherenceStats({
     required this.scheduled,
     required this.taken,
+    required this.late,
     required this.skipped,
     required this.missed,
   });
 
   final int scheduled;
   final int taken;
+  final int late;
   final int skipped;
   final int missed;
 
-  /// taken / (scheduled excluding still-pending future doses). 0..1.
+  /// (taken + late) / decided doses. Late counts as adherent because the
+  /// medication WAS taken, just outside the on-time window.
   double get rate {
-    final decided = taken + skipped + missed;
+    final decided = taken + late + skipped + missed;
     if (decided == 0) return 0;
-    return taken / decided;
+    return (taken + late) / decided;
   }
 }
 
@@ -94,7 +86,7 @@ AdherenceStats computeAdherence({
   required DateTime to,
   required DateTime now,
 }) {
-  var scheduled = 0, taken = 0, skipped = 0, missed = 0;
+  var scheduled = 0, taken = 0, late = 0, skipped = 0, missed = 0;
   var day = DateTime(from.year, from.month, from.day);
   final last = DateTime(to.year, to.month, to.day);
   while (!day.isAfter(last)) {
@@ -102,17 +94,18 @@ AdherenceStats computeAdherence({
       for (final t in m.doseTimesOn(day)) {
         scheduled++;
         final log = lookupLog(m.id, t);
-        final status = _resolve(log, t, now);
         if (log != null) {
           switch (log.status) {
             case DoseStatus.taken:
               taken++;
+            case DoseStatus.late:
+              late++;
             case DoseStatus.skipped:
               skipped++;
             case DoseStatus.missed:
               missed++;
           }
-        } else if (status == DoseStatus.missed) {
+        } else if (t.isBefore(now)) {
           missed++;
         }
       }
@@ -122,6 +115,7 @@ AdherenceStats computeAdherence({
   return AdherenceStats(
     scheduled: scheduled,
     taken: taken,
+    late: late,
     skipped: skipped,
     missed: missed,
   );

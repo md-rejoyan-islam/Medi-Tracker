@@ -46,6 +46,12 @@ dependencies:
   timezone: ^0.10.1
   flutter_timezone: ^4.1.1
 
+  # Medi Tracker: spec §1 device onboarding via QR + NFC
+  mobile_scanner: ^5.2.3
+  flutter_nfc_kit: ^3.5.2
+  # Medi Tracker: spec §8 adherence charts
+  fl_chart: ^0.69.2
+
 dev_dependencies:
   flutter_test:
     sdk: flutter

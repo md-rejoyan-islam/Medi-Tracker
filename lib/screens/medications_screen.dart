@@ -52,8 +52,9 @@ class MedicationsScreen extends StatelessWidget {
               final m = meds[i];
               return ListTile(
                 leading: CircleAvatar(
-                  child: Icon(
-                    m.active ? Icons.medication : Icons.pause,
+                  child: Text(
+                    m.drawer?.toString() ?? '–',
+                    style: const TextStyle(fontWeight: FontWeight.bold),
                   ),
                 ),
                 title: Text(
@@ -64,10 +65,13 @@ class MedicationsScreen extends StatelessWidget {
                   ),
                 ),
                 subtitle: Text(
-                  '${m.dosage.isEmpty ? '' : '${m.dosage}\n'}'
-                  '${_scheduleSummary(context, m)}',
+                  [
+                    if (m.dosage.isNotEmpty) m.dosage,
+                    _scheduleSummary(context, m),
+                    m.mealTiming.label,
+                  ].join('\n'),
                 ),
-                isThreeLine: m.dosage.isNotEmpty,
+                isThreeLine: true,
                 trailing: PopupMenuButton<String>(
                   onSelected: (v) async {
                     if (v == 'edit') {

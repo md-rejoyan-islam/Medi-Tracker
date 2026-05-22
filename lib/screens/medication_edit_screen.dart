@@ -5,6 +5,9 @@ import '../models/medication.dart';
 import '../services/reminder_service.dart';
 
 /// Add or edit a [Medication]. Pass null to create a new one.
+///
+/// Reflects spec §3-§4: Medicine name, Drawer (1-8, required), Dosage,
+/// Frequency preset, Times, Meal timing, Days, Start/End, Notes.
 class MedicationEditScreen extends StatefulWidget {
   const MedicationEditScreen({super.key, this.existing});
   final Medication? existing;
@@ -19,13 +22,14 @@ class _MedicationEditScreenState extends State<MedicationEditScreen> {
   late final TextEditingController _dosage;
   late final TextEditingController _notes;
 
-  // Schedule state
+  int? _drawer;
+  Frequency _frequency = Frequency.twiceDaily;
   final List<int> _times = []; // minutes from midnight
+  MealTiming _mealTiming = MealTiming.anyTime;
   final Set<int> _days = {}; // ISO weekdays; empty = every day
   late DateTime _start;
   DateTime? _end;
   bool _active = true;
-  int? _dispenserSlot;
 
   static const _weekdayLabels = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
@@ -36,12 +40,14 @@ class _MedicationEditScreenState extends State<MedicationEditScreen> {
     _name = TextEditingController(text: m?.name ?? '');
     _dosage = TextEditingController(text: m?.dosage ?? '');
     _notes = TextEditingController(text: m?.notes ?? '');
-    _times.addAll(m?.timesOfDay ?? const [480]); // default 08:00
+    _drawer = m?.drawer;
+    _times.addAll(m?.timesOfDay ?? Medication.defaultTimesFor(_frequency));
+    _frequency = m?.frequency ?? _frequency;
+    _mealTiming = m?.mealTiming ?? MealTiming.anyTime;
     _days.addAll(m?.daysOfWeek ?? const []);
     _start = m?.startDate ?? DateTime.now();
     _end = m?.endDate;
     _active = m?.active ?? true;
-    _dispenserSlot = m?.dispenserSlot;
   }
 
   @override
@@ -52,9 +58,18 @@ class _MedicationEditScreenState extends State<MedicationEditScreen> {
     super.dispose();
   }
 
-  String _fmt(int minutes) {
-    final t = TimeOfDay(hour: minutes ~/ 60, minute: minutes % 60);
-    return t.format(context);
+  String _fmt(int minutes) =>
+      TimeOfDay(hour: minutes ~/ 60, minute: minutes % 60).format(context);
+
+  void _applyFrequency(Frequency f) {
+    setState(() {
+      _frequency = f;
+      if (f != Frequency.custom) {
+        _times
+          ..clear()
+          ..addAll(Medication.defaultTimesFor(f));
+      }
+    });
   }
 
   Future<void> _addTime() async {
@@ -69,6 +84,7 @@ class _MedicationEditScreenState extends State<MedicationEditScreen> {
         _times
           ..add(minutes)
           ..sort();
+        _frequency = Frequency.custom;
       });
     }
   }
@@ -91,19 +107,61 @@ class _MedicationEditScreenState extends State<MedicationEditScreen> {
     });
   }
 
+  Future<void> _pickDrawer() async {
+    final taken = {
+      for (final m in MediStore.instance.medications)
+        if (m.id != widget.existing?.id && m.drawer != null) m.drawer!,
+    };
+    final pick = await showDialog<int>(
+      context: context,
+      builder: (ctx) => SimpleDialog(
+        title: const Text('Select drawer'),
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+            child: Wrap(
+              spacing: 12,
+              runSpacing: 12,
+              children: [
+                for (var i = 1; i <= 8; i++)
+                  ChoiceChip(
+                    label: Text('$i'),
+                    selected: _drawer == i,
+                    onSelected: taken.contains(i)
+                        ? null
+                        : (_) => Navigator.pop(ctx, i),
+                  ),
+              ],
+            ),
+          ),
+          if (taken.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: Text(
+                'Greyed: already used by another medication.',
+                style: Theme.of(ctx).textTheme.bodySmall,
+              ),
+            ),
+        ],
+      ),
+    );
+    if (pick != null) setState(() => _drawer = pick);
+  }
+
   Future<void> _save() async {
     if (!_formKey.currentState!.validate()) return;
+    if (_drawer == null) {
+      _snack('Pick a drawer (1-8).');
+      return;
+    }
     if (_times.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Add at least one reminder time.')),
-      );
+      _snack('Add at least one reminder time.');
       return;
     }
 
     final old = widget.existing;
     final med = Medication(
-      id: old?.id ??
-          'med_${DateTime.now().microsecondsSinceEpoch}',
+      id: old?.id ?? 'med_${DateTime.now().microsecondsSinceEpoch}',
       name: _name.text.trim(),
       dosage: _dosage.text.trim(),
       timesOfDay: [..._times]..sort(),
@@ -111,20 +169,20 @@ class _MedicationEditScreenState extends State<MedicationEditScreen> {
       startDate: _start,
       endDate: _end,
       notes: _notes.text.trim(),
-      dispenserSlot: _dispenserSlot,
+      drawer: _drawer,
+      mealTiming: _mealTiming,
       active: _active,
     );
-
     await MediStore.instance.saveMedication(med);
-
-    if (!ReminderService.instance.supported) {
-      // no-op platform
-    } else {
+    if (ReminderService.instance.supported) {
       await ReminderService.instance.requestPermission();
       await ReminderService.instance.sync(med);
     }
-
     if (mounted) Navigator.of(context).pop();
+  }
+
+  void _snack(String msg) {
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
   }
 
   @override
@@ -149,12 +207,25 @@ class _MedicationEditScreenState extends State<MedicationEditScreen> {
             TextFormField(
               controller: _name,
               decoration: const InputDecoration(
-                labelText: 'Name *',
+                labelText: 'Medicine name *',
                 hintText: 'e.g. Metformin',
               ),
               textCapitalization: TextCapitalization.sentences,
               validator: (v) =>
                   (v == null || v.trim().isEmpty) ? 'Required' : null,
+            ),
+            const SizedBox(height: 12),
+            InkWell(
+              onTap: _pickDrawer,
+              child: InputDecorator(
+                decoration: const InputDecoration(
+                  labelText: 'Drawer * (1-8)',
+                  prefixIcon: Icon(Icons.inventory_2_outlined),
+                ),
+                child: Text(
+                  _drawer == null ? 'Pick a drawer' : 'Drawer $_drawer',
+                ),
+              ),
             ),
             const SizedBox(height: 12),
             TextFormField(
@@ -164,9 +235,23 @@ class _MedicationEditScreenState extends State<MedicationEditScreen> {
                 hintText: 'e.g. 1 tablet, 500 mg',
               ),
             ),
+
             const SizedBox(height: 24),
-            Text('Reminder times',
-                style: Theme.of(context).textTheme.titleMedium),
+            Text('Frequency', style: Theme.of(context).textTheme.titleMedium),
+            const SizedBox(height: 8),
+            SegmentedButton<Frequency>(
+              segments: const [
+                ButtonSegment(value: Frequency.onceDaily, label: Text('1×')),
+                ButtonSegment(value: Frequency.twiceDaily, label: Text('2×')),
+                ButtonSegment(
+                    value: Frequency.threeTimesDaily, label: Text('3×')),
+                ButtonSegment(value: Frequency.custom, label: Text('Custom')),
+              ],
+              selected: {_frequency},
+              onSelectionChanged: (s) => _applyFrequency(s.first),
+            ),
+            const SizedBox(height: 16),
+            Text('Times', style: Theme.of(context).textTheme.titleMedium),
             const SizedBox(height: 8),
             Wrap(
               spacing: 8,
@@ -175,7 +260,10 @@ class _MedicationEditScreenState extends State<MedicationEditScreen> {
                 for (final t in _times)
                   InputChip(
                     label: Text(_fmt(t)),
-                    onDeleted: () => setState(() => _times.remove(t)),
+                    onDeleted: () => setState(() {
+                      _times.remove(t);
+                      _frequency = Frequency.custom;
+                    }),
                   ),
                 ActionChip(
                   avatar: const Icon(Icons.add, size: 18),
@@ -184,6 +272,21 @@ class _MedicationEditScreenState extends State<MedicationEditScreen> {
                 ),
               ],
             ),
+
+            const SizedBox(height: 24),
+            Text('Meal timing',
+                style: Theme.of(context).textTheme.titleMedium),
+            const SizedBox(height: 8),
+            SegmentedButton<MealTiming>(
+              segments: [
+                for (final t in MealTiming.values)
+                  ButtonSegment(value: t, label: Text(t.label)),
+              ],
+              selected: {_mealTiming},
+              onSelectionChanged: (s) =>
+                  setState(() => _mealTiming = s.first),
+            ),
+
             const SizedBox(height: 24),
             Text('Repeat on', style: Theme.of(context).textTheme.titleMedium),
             const Text(
@@ -204,6 +307,7 @@ class _MedicationEditScreenState extends State<MedicationEditScreen> {
                   ),
               ],
             ),
+
             const SizedBox(height: 24),
             ListTile(
               contentPadding: EdgeInsets.zero,

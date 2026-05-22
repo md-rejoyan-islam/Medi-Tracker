@@ -122,7 +122,37 @@ void main() {
       expect(s.taken, 1);
       expect(s.skipped, 1);
       expect(s.missed, 1);
+      // (taken + late) / decided = 1 / 3
       expect(s.rate, closeTo(1 / 3, 1e-9));
+    });
+
+    test('late doses count toward the adherence rate', () {
+      final m = _med(times: const [480], start: DateTime(2026, 5, 16));
+      final logs = <String, DoseLog>{
+        DoseLog.occurrenceKey('m1', DateTime(2026, 5, 16, 8, 0)): DoseLog(
+          id: 'a',
+          medicationId: 'm1',
+          scheduledTime: DateTime(2026, 5, 16, 8, 0),
+          status: DoseStatus.late,
+        ),
+        DoseLog.occurrenceKey('m1', DateTime(2026, 5, 17, 8, 0)): DoseLog(
+          id: 'b',
+          medicationId: 'm1',
+          scheduledTime: DateTime(2026, 5, 17, 8, 0),
+          status: DoseStatus.taken,
+        ),
+      };
+      final now = DateTime(2026, 5, 17, 23, 0);
+      final s = computeAdherence(
+        medications: [m],
+        lookupLog: (id, t) => logs[DoseLog.occurrenceKey(id, t)],
+        from: DateTime(2026, 5, 16),
+        to: DateTime(2026, 5, 17),
+        now: now,
+      );
+      expect(s.taken, 1);
+      expect(s.late, 1);
+      expect(s.rate, closeTo(1.0, 1e-9));
     });
 
     test('rate is 0 when nothing decided yet', () {
