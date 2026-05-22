@@ -1,6 +1,6 @@
 import 'dart:io' show Platform;
 
-import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:flutter/foundation.dart' show kIsWeb, visibleForTesting;
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter_timezone/flutter_timezone.dart';
 import 'package:hive_ce/hive.dart';
@@ -204,10 +204,25 @@ class ReminderService {
 
   /// Deterministic notification id for a (med, minute-of-day, weekday) slot.
   /// weekday 0 means "every day".
+  ///
+  /// Must stay within Android's int32 NotificationManager limit
+  /// (`0 .. 2,147,483,647`) — going over silently collapses different
+  /// medications into the same ID after the Android side truncates,
+  /// which was why scheduled medication reminders were being dropped.
+  ///
+  /// Packing: 15-bit hash (32,768 values) + (minuteOfDay × 10 + weekday)
+  /// (max 14,397) → max ID 655,354,397, well under int32.
   int _notificationId(String medId, int minuteOfDay, int weekday) {
-    final base = medId.hashCode & 0x3FFFFF; // 22 bits
-    return base * 10000 + minuteOfDay * 10 + weekday;
+    final base = medId.hashCode & 0x7FFF; // 15 bits → safe int32 multiplier
+    return base * 20000 + minuteOfDay * 10 + weekday;
   }
+
+  /// Exposed for testing only — keeps the int32 invariant guarded by a
+  /// real assertion instead of "we'll notice if it breaks in production".
+  @visibleForTesting
+  static int notificationIdForTest(
+          String medId, int minuteOfDay, int weekday) =>
+      ReminderService.instance._notificationId(medId, minuteOfDay, weekday);
 
   /// Reschedules all reminders for [m]: cancels any previous ones, then
   /// schedules the current schedule. Inactive meds are just cancelled.
