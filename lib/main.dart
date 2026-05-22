@@ -2,8 +2,7 @@ import 'package:flutter/material.dart';
 
 import 'data/medi_store.dart';
 import 'data/settings_store.dart';
-import 'screens/home_shell.dart';
-import 'screens/welcome_screen.dart';
+import 'screens/app_root.dart';
 import 'services/reminder_service.dart';
 import 'theme/app_theme.dart';
 
@@ -35,9 +34,7 @@ class MediApp extends StatelessWidget {
           theme: AppTheme.light(),
           darkTheme: AppTheme.dark(),
           themeMode: SettingsStore.instance.themeMode,
-          home: SettingsStore.instance.onboardingComplete
-              ? const HomeShell()
-              : const WelcomeScreen(),
+          home: const AppRoot(),
         );
       },
     );

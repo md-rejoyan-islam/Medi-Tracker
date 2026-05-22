@@ -1,21 +1,19 @@
 import 'package:flutter/material.dart';
 
 import '../data/settings_store.dart';
-import 'home_shell.dart';
 
 /// First-launch entry from spec §1: Create / Login / Guest.
 ///
 /// V1 is local-only (per spec: "No cloud required. BLE + local storage only"),
 /// so Create/Login are placeholders pointing to the same Guest entry until
-/// a real auth backend exists.
+/// a real auth backend exists. The actual screen swap to HomeShell is done
+/// by [AppRoot] reacting to `onboardingComplete` — Welcome only flips the
+/// flag, which keeps navigation and state in lockstep.
 class WelcomeScreen extends StatelessWidget {
   const WelcomeScreen({super.key});
 
   void _enter(BuildContext context) {
     SettingsStore.instance.onboardingComplete = true;
-    Navigator.of(context).pushReplacement(
-      MaterialPageRoute(builder: (_) => const HomeShell()),
-    );
   }
 
   void _notImplemented(BuildContext context, String label) {

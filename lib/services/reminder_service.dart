@@ -51,7 +51,11 @@ class ReminderService {
       tz.setLocalLocation(tz.getLocation(localName));
 
       const android = AndroidInitializationSettings('@mipmap/ic_launcher');
-      const darwin = DarwinInitializationSettings();
+      const darwin = DarwinInitializationSettings(
+        requestAlertPermission: true,
+        requestSoundPermission: true,
+        requestBadgePermission: true,
+      );
       const linux =
           LinuxInitializationSettings(defaultActionName: 'Open');
       await _plugin.initialize(
@@ -62,23 +66,51 @@ class ReminderService {
           linux: linux,
         ),
       );
+
+      // Create the channel explicitly so it picks up MAX importance + sound
+      // immediately; channels can't be modified after first creation on
+      // Android, so this must match [_details] below.
+      if (Platform.isAndroid) {
+        final android = _plugin.resolvePlatformSpecificImplementation<
+            AndroidFlutterLocalNotificationsPlugin>();
+        await android?.createNotificationChannel(
+          const AndroidNotificationChannel(
+            _channelId,
+            'Medication reminders',
+            description: 'Reminders to take your medication on time',
+            importance: Importance.max,
+            playSound: true,
+            enableVibration: true,
+          ),
+        );
+      }
+
       _idBox = await Hive.openBox<List>(_idBoxName);
+
+      // Ask up-front so notifications can actually be delivered. Android
+      // 13+ silently drops scheduled notifications until POST_NOTIFICATIONS
+      // is granted.
+      await requestPermission();
     } catch (_) {
       // Any platform/init failure: degrade to no-op rather than crash.
       _supported = false;
     }
   }
 
-  /// Requests notification permission where the OS gates it (Android 13+,
-  /// iOS/macOS). Returns true if granted or not required.
+  /// Requests notification permission where the OS gates it (Android 13+
+  /// `POST_NOTIFICATIONS`, Android 12+ exact-alarm, iOS/macOS alert+sound).
+  /// Returns true if granted or not required.
   Future<bool> requestPermission() async {
     if (!_supported || kIsWeb) return false;
     try {
       if (Platform.isAndroid) {
         final android = _plugin.resolvePlatformSpecificImplementation<
             AndroidFlutterLocalNotificationsPlugin>();
-        final granted = await android?.requestNotificationsPermission();
-        return granted ?? true;
+        final notif = await android?.requestNotificationsPermission();
+        // Android 12+ requires explicit user consent for exact alarms; we
+        // want exact for medication timing (within a minute of the dose).
+        await android?.requestExactAlarmsPermission();
+        return notif ?? true;
       }
       if (Platform.isIOS || Platform.isMacOS) {
         final darwin = _plugin.resolvePlatformSpecificImplementation<
@@ -103,10 +135,23 @@ class ReminderService {
           channelDescription: 'Reminders to take your medication on time',
           importance: Importance.max,
           priority: Priority.high,
-          category: AndroidNotificationCategory.reminder,
+          category: AndroidNotificationCategory.alarm,
+          playSound: true,
+          enableVibration: true,
+          fullScreenIntent: false,
+          visibility: NotificationVisibility.public,
         ),
-        iOS: DarwinNotificationDetails(),
-        macOS: DarwinNotificationDetails(),
+        iOS: DarwinNotificationDetails(
+          presentAlert: true,
+          presentBadge: true,
+          presentSound: true,
+          interruptionLevel: InterruptionLevel.timeSensitive,
+        ),
+        macOS: DarwinNotificationDetails(
+          presentAlert: true,
+          presentBadge: true,
+          presentSound: true,
+        ),
         linux: LinuxNotificationDetails(),
       );
 
@@ -131,20 +176,38 @@ class ReminderService {
         final id = _notificationId(m.id, minute, wd);
         final when = _nextInstance(minute, wd);
         try {
+          // exactAllowWhileIdle wakes the device from Doze and fires within
+          // a minute of the scheduled time — required for medication
+          // adherence (vs. inexact which the OS may batch by 10+ min).
           await _plugin.zonedSchedule(
             id,
             'Time for ${m.name}',
             m.dosage.isEmpty ? 'Tap when taken' : m.dosage,
             when,
             _details,
-            androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
+            androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
             matchDateTimeComponents: wd == 0
                 ? DateTimeComponents.time
                 : DateTimeComponents.dayOfWeekAndTime,
           );
           ids.add(id);
         } catch (_) {
-          // Skip a slot that the OS refuses rather than abort the rest.
+          // If the OS refuses exact (permission not granted on Android 12+),
+          // fall back to inexact so the user still gets *something*.
+          try {
+            await _plugin.zonedSchedule(
+              id,
+              'Time for ${m.name}',
+              m.dosage.isEmpty ? 'Tap when taken' : m.dosage,
+              when,
+              _details,
+              androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
+              matchDateTimeComponents: wd == 0
+                  ? DateTimeComponents.time
+                  : DateTimeComponents.dayOfWeekAndTime,
+            );
+            ids.add(id);
+          } catch (_) {/* give up on this slot */}
         }
       }
     }

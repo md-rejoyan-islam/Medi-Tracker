@@ -92,6 +92,17 @@ class SettingsStore extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// When true, the foreground app also pops the full-screen reminder when
+  /// a dose becomes due. Defaults to **false** — the spec's primary
+  /// reminder channel is the OS notification + device LED/audio, and most
+  /// users find an unsolicited in-app screen jarring.
+  bool get inAppReminderPopup =>
+      _box.get('in_app_reminder', defaultValue: false) as bool;
+  set inAppReminderPopup(bool v) {
+    _box.put('in_app_reminder', v);
+    notifyListeners();
+  }
+
   // --- Paired device ----------------------------------------------------
 
   /// Human-friendly device name shown on the dashboard.

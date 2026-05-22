@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 
 import '../data/adherence.dart';
 import '../data/medi_store.dart';
+import '../data/settings_store.dart';
 import '../models/dose_log.dart';
 import '../screens/reminder_screen.dart';
 
@@ -68,6 +69,7 @@ class InAppReminderWatcher with WidgetsBindingObserver {
   }
 
   Future<void> _check() async {
+    if (!SettingsStore.instance.inAppReminderPopup) return;
     if (_activeKey != null) return; // a reminder is already on screen
     final nav = _navKey.currentState;
     if (nav == null) return;

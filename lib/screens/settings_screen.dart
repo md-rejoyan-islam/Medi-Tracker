@@ -85,6 +85,15 @@ class SettingsScreen extends StatelessWidget {
                 ),
                 trailing: Text('${s.repeatIntervalMinutes} min'),
               ),
+              SwitchListTile(
+                title: const Text('In-app reminder popup'),
+                subtitle: const Text(
+                  'When the app is open, also pop the reminder screen at '
+                  'dose time. Off = OS notification only (recommended).',
+                ),
+                value: s.inAppReminderPopup,
+                onChanged: (v) => s.inAppReminderPopup = v,
+              ),
 
               const _SectionHeader('Device'),
               ListTile(
