@@ -2,12 +2,12 @@ import 'package:flutter/material.dart';
 
 /// MediTracker visual design system.
 ///
-/// Brand palette is derived from the heart-with-pulse logo: a deep teal
-/// (`#0F766E`) with a slate-navy ink (`#0F172A`) and warm off-white surface.
-/// Light theme is calm and clean; dark theme uses rich navy (not pure black)
-/// with brighter teal so the brand still pops. Both schemes meet WCAG-AA
-/// contrast for body text and follow the 60-30-10 rule (neutral surface /
-/// secondary / accent).
+/// Brand palette inspired by the **জমির.পাতা.বাংলা** reference design:
+/// bright violet (`#A855F7` / `#7C3AED`) on a deep navy-purple ground
+/// (`#0E0420`), with a fuchsia secondary for pops of warm contrast.
+/// Light theme keeps the same brand violet but on warm white surfaces.
+/// Both schemes meet WCAG-AA contrast for body text and follow the
+/// 60-30-10 rule (neutral surface / secondary / accent).
 ///
 /// Status colours (success/warning/danger) are exposed via [AppStatusColors]
 /// as a [ThemeExtension] so the Dashboard / Drawers / History / Reminder
@@ -17,23 +17,23 @@ class AppTheme {
   AppTheme._();
 
   // --- Brand seeds ------------------------------------------------------
-  static const _brandTeal = Color(0xFF0F766E);
-  static const _brandTealBright = Color(0xFF2DD4BF);
-  static const _ink = Color(0xFF0F172A); // slate-900
-  static const _navy = Color(0xFF0B1220); // pre-black navy
+  static const _violet = Color(0xFF7C3AED); // violet-600 — light theme
+  static const _violetBright = Color(0xFFB95CF5); // bright on dark
+  static const _ink = Color(0xFF1E1B3F); // deep slate-violet text
+  static const _deepPurple = Color(0xFF0E0420); // near-black navy-purple
 
   // --- Light scheme -----------------------------------------------------
   static const ColorScheme lightScheme = ColorScheme(
     brightness: Brightness.light,
-    primary: _brandTeal,
+    primary: _violet,
     onPrimary: Color(0xFFFFFFFF),
-    primaryContainer: Color(0xFFCCFBF1),
-    onPrimaryContainer: Color(0xFF042F2E),
-    secondary: Color(0xFF0EA5E9), // sky-500
+    primaryContainer: Color(0xFFEDE9FE), // violet-100
+    onPrimaryContainer: Color(0xFF3B0764), // violet-950
+    secondary: Color(0xFFC026D3), // fuchsia-600 — vibrant accent
     onSecondary: Color(0xFFFFFFFF),
-    secondaryContainer: Color(0xFFE0F2FE),
-    onSecondaryContainer: Color(0xFF0C4A6E),
-    tertiary: Color(0xFFF59E0B), // amber-500
+    secondaryContainer: Color(0xFFFAE8FF), // fuchsia-100
+    onSecondaryContainer: Color(0xFF4A044E), // fuchsia-950
+    tertiary: Color(0xFFF59E0B), // amber-500 — warm CTA
     onTertiary: Color(0xFFFFFFFF),
     tertiaryContainer: Color(0xFFFEF3C7),
     onTertiaryContainer: Color(0xFF78350F),
@@ -43,33 +43,33 @@ class AppTheme {
     onErrorContainer: Color(0xFF7F1D1D),
     surface: Color(0xFFFFFFFF),
     onSurface: _ink,
-    onSurfaceVariant: Color(0xFF475569), // slate-600
+    onSurfaceVariant: Color(0xFF52525B), // zinc-600
     surfaceContainerLowest: Color(0xFFFFFFFF),
-    surfaceContainerLow: Color(0xFFF8FAFC), // slate-50
-    surfaceContainer: Color(0xFFF1F5F9), // slate-100
-    surfaceContainerHigh: Color(0xFFE2E8F0), // slate-200
-    surfaceContainerHighest: Color(0xFFCBD5E1), // slate-300
-    surfaceTint: _brandTeal,
-    outline: Color(0xFFCBD5E1),
-    outlineVariant: Color(0xFFE2E8F0),
-    shadow: Color(0xFF0F172A),
-    scrim: Color(0xFF0F172A),
-    inverseSurface: Color(0xFF1E293B),
-    onInverseSurface: Color(0xFFF1F5F9),
-    inversePrimary: _brandTealBright,
+    surfaceContainerLow: Color(0xFFFAF7FF), // hint of violet tint
+    surfaceContainer: Color(0xFFF5F3FF), // violet-50
+    surfaceContainerHigh: Color(0xFFEDE9FE), // violet-100
+    surfaceContainerHighest: Color(0xFFDDD6FE), // violet-200
+    surfaceTint: _violet,
+    outline: Color(0xFFCBC2D9),
+    outlineVariant: Color(0xFFE5E0EF),
+    shadow: Color(0xFF1E1B3F),
+    scrim: Color(0xFF1E1B3F),
+    inverseSurface: Color(0xFF241048),
+    onInverseSurface: Color(0xFFF5F3FF),
+    inversePrimary: _violetBright,
   );
 
-  // --- Dark scheme ------------------------------------------------------
+  // --- Dark scheme (matches the reference screenshot) -------------------
   static const ColorScheme darkScheme = ColorScheme(
     brightness: Brightness.dark,
-    primary: _brandTealBright,
-    onPrimary: Color(0xFF042F2E),
-    primaryContainer: Color(0xFF115E59),
-    onPrimaryContainer: Color(0xFFCCFBF1),
-    secondary: Color(0xFF38BDF8), // sky-400
-    onSecondary: Color(0xFF082F49),
-    secondaryContainer: Color(0xFF0C4A6E),
-    onSecondaryContainer: Color(0xFFE0F2FE),
+    primary: _violetBright,
+    onPrimary: Color(0xFF240048),
+    primaryContainer: Color(0xFF5B189A), // violet-800
+    onPrimaryContainer: Color(0xFFEDE0FF),
+    secondary: Color(0xFFE879F9), // fuchsia-400 — vibrant on dark
+    onSecondary: Color(0xFF4A044E),
+    secondaryContainer: Color(0xFF86198F),
+    onSecondaryContainer: Color(0xFFFAE8FF),
     tertiary: Color(0xFFFBBF24), // amber-400
     onTertiary: Color(0xFF422006),
     tertiaryContainer: Color(0xFF78350F),
@@ -78,25 +78,29 @@ class AppTheme {
     onError: Color(0xFF450A0A),
     errorContainer: Color(0xFF7F1D1D),
     onErrorContainer: Color(0xFFFEE2E2),
-    surface: _navy,
-    onSurface: Color(0xFFF1F5F9),
-    onSurfaceVariant: Color(0xFF94A3B8), // slate-400
-    surfaceContainerLowest: Color(0xFF050810),
-    surfaceContainerLow: Color(0xFF0F172A), // slate-900
-    surfaceContainer: Color(0xFF1E293B), // slate-800
-    surfaceContainerHigh: Color(0xFF2C3A52),
-    surfaceContainerHighest: Color(0xFF334155), // slate-700
-    surfaceTint: _brandTealBright,
-    outline: Color(0xFF475569),
-    outlineVariant: Color(0xFF334155),
+    surface: _deepPurple,
+    onSurface: Color(0xFFF3EFFF),
+    onSurfaceVariant: Color(0xFFA1A1AA), // zinc-400
+    surfaceContainerLowest: Color(0xFF070210),
+    surfaceContainerLow: Color(0xFF180838),
+    surfaceContainer: Color(0xFF241048),
+    surfaceContainerHigh: Color(0xFF2E155A),
+    surfaceContainerHighest: Color(0xFF3B1B6E),
+    surfaceTint: _violetBright,
+    outline: Color(0xFF5B4881),
+    outlineVariant: Color(0xFF3B2A55),
     shadow: Color(0xFF000000),
     scrim: Color(0xFF000000),
-    inverseSurface: Color(0xFFE2E8F0),
-    onInverseSurface: Color(0xFF0F172A),
-    inversePrimary: _brandTeal,
+    inverseSurface: Color(0xFFEDE9FE),
+    onInverseSurface: Color(0xFF1E1B3F),
+    inversePrimary: _violet,
   );
 
   // --- Status colour extension -----------------------------------------
+  // Kept semantic (green / amber / red) regardless of brand hue so users
+  // recognise them at a glance. Container shades in dark mode are nudged
+  // slightly purple-warm so they sit on the navy-purple surfaces without
+  // looking out of place.
   static const _lightStatus = AppStatusColors(
     success: Color(0xFF15803D), // green-700
     onSuccess: Color(0xFFFFFFFF),
@@ -115,15 +119,15 @@ class AppTheme {
   static const _darkStatus = AppStatusColors(
     success: Color(0xFF4ADE80), // green-400
     onSuccess: Color(0xFF052E16),
-    successContainer: Color(0xFF14532D),
+    successContainer: Color(0xFF1A3A2A), // green tinted with violet base
     onSuccessContainer: Color(0xFFDCFCE7),
     warning: Color(0xFFFBBF24),
     onWarning: Color(0xFF422006),
-    warningContainer: Color(0xFF78350F),
+    warningContainer: Color(0xFF3F2D0E),
     onWarningContainer: Color(0xFFFEF3C7),
     danger: Color(0xFFF87171),
     onDanger: Color(0xFF450A0A),
-    dangerContainer: Color(0xFF7F1D1D),
+    dangerContainer: Color(0xFF3D1623),
     onDangerContainer: Color(0xFFFEE2E2),
   );
 
